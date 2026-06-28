@@ -8,7 +8,10 @@ use std::{
 
 use anyhow::Result;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, MouseButton, MouseEventKind},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers,
+        MouseButton, MouseEventKind,
+    },
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -25,12 +28,20 @@ use ratatui::{
 };
 
 use crate::model::{Confidence, PlannedMove, Summary};
+use crate::model::TransferMode;
 
 pub struct AppView {
     pub source_root: std::path::PathBuf,
     pub output_root: std::path::PathBuf,
     pub plan: Vec<PlannedMove>,
     pub summary: Summary,
+    pub transfer_mode: TransferMode,
+}
+
+pub struct UiSelection {
+    pub confirmed: bool,
+    pub plan: Vec<PlannedMove>,
+    pub disabled_plan_indices: HashSet<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -85,7 +96,7 @@ pub fn run_loading_modal(progress_rx: mpsc::Receiver<LoadingUpdate>) -> Result<(
     Ok(())
 }
 
-pub fn run(view: AppView) -> Result<()> {
+pub fn run(view: AppView) -> Result<UiSelection> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -106,22 +117,11 @@ pub fn run(view: AppView) -> Result<()> {
 
     res?;
 
-    if app.confirmed_move {
-        println!("Dry-run only. Move confirmed, but no files were moved.");
-    } else {
-        println!("Dry-run ended. No files were moved.");
-    }
-
-    println!(
-        "Scanned: {} | Classified: {} | Unclassified: {} | Conflicts: {} | Skipped: {}",
-        app.view.summary.scanned_files,
-        app.view.summary.planned_moves,
-        app.view.summary.unclassified,
-        app.view.summary.conflicts,
-        app.view.summary.skipped
-    );
-
-    Ok(())
+    Ok(UiSelection {
+        confirmed: app.confirmed_move,
+        plan: app.view.plan,
+        disabled_plan_indices: app.disabled_plan_indices,
+    })
 }
 
 struct UiState {
@@ -134,6 +134,7 @@ struct UiState {
     confirmed_move: bool,
     frame_area: Rect,
     scrollbar_dragging: bool,
+    output_horizontal_offset: usize,
 }
 
 impl UiState {
@@ -150,6 +151,7 @@ impl UiState {
             confirmed_move: false,
             frame_area: Rect::new(0, 0, 0, 0),
             scrollbar_dragging: false,
+            output_horizontal_offset: 0,
         }
     }
 }
@@ -188,6 +190,13 @@ struct BodyClick {
     pane: Pane,
 }
 
+#[derive(Clone, Copy)]
+enum SelectionState {
+    All,
+    Some,
+    None,
+}
+
 fn run_loop(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     app: &mut UiState,
@@ -200,28 +209,31 @@ fn run_loop(
         }
 
         match event::read()? {
-            Event::Key(key) => match key.code {
-                KeyCode::Char('q') | KeyCode::Esc => break,
-                KeyCode::Char('n') => {
+            Event::Key(key) => match (key.code, key.modifiers) {
+                (KeyCode::Char('q'), _) | (KeyCode::Esc, _) => break,
+                (KeyCode::Char('n'), _) => {
                     app.confirmed_move = false;
                     break;
                 }
-                KeyCode::Char('y') => {
+                (KeyCode::Char('y'), _) => {
                     app.confirmed_move = true;
                     break;
                 }
-                KeyCode::Down => move_down(app),
-                KeyCode::Up => move_up(app),
-                KeyCode::Enter | KeyCode::Char(' ') => toggle_section(app),
-                KeyCode::Right => expand_section(app),
-                KeyCode::Left => collapse_section(app),
-                KeyCode::Char('x') => toggle_selected_item_enabled(app),
-                KeyCode::PageDown => {
+                (KeyCode::Down, _) => move_down(app),
+                (KeyCode::Up, _) => move_up(app),
+                (KeyCode::Enter, _) | (KeyCode::Char(' '), _) => toggle_section(app),
+                (KeyCode::Right, KeyModifiers::SHIFT) => scroll_output_right(app, 8),
+                (KeyCode::Left, KeyModifiers::SHIFT) => scroll_output_left(app, 8),
+                (KeyCode::Home, KeyModifiers::SHIFT) => app.output_horizontal_offset = 0,
+                (KeyCode::Right, _) => expand_section(app),
+                (KeyCode::Left, _) => collapse_section(app),
+                (KeyCode::Char('x'), _) => toggle_selected_row_enabled(app),
+                (KeyCode::PageDown, _) => {
                     for _ in 0..10 {
                         move_down(app);
                     }
                 }
-                KeyCode::PageUp => {
+                (KeyCode::PageUp, _) => {
                     for _ in 0..10 {
                         move_up(app);
                     }
@@ -231,7 +243,14 @@ fn run_loop(
             Event::Mouse(mouse) => match mouse.kind {
                 MouseEventKind::ScrollDown => move_down(app),
                 MouseEventKind::ScrollUp => move_up(app),
+                MouseEventKind::ScrollLeft => scroll_output_left(app, 4),
+                MouseEventKind::ScrollRight => scroll_output_right(app, 4),
                 MouseEventKind::Down(MouseButton::Left) => {
+                    if clicked_all_toggle(app.frame_area, mouse.column, mouse.row) {
+                        toggle_all_enabled(app);
+                        continue;
+                    }
+
                     if handle_scrollbar_mouse(app, mouse.column, mouse.row) {
                         app.scrollbar_dragging = true;
                         continue;
@@ -369,13 +388,13 @@ fn collapse_section(app: &mut UiState) {
     clamp_selected(app);
 }
 
-fn toggle_selected_item_enabled(app: &mut UiState) {
+fn toggle_selected_row_enabled(app: &mut UiState) {
     let rows = build_display_rows(app);
-    let Some(DisplayRow::Item { plan_index }) = rows.get(app.selected) else {
+    let Some(row) = rows.get(app.selected).cloned() else {
         return;
     };
 
-    toggle_item_enabled(app, *plan_index);
+    toggle_row_enabled(app, &row);
 }
 
 fn toggle_item_enabled(app: &mut UiState, plan_index: usize) {
@@ -384,6 +403,200 @@ fn toggle_item_enabled(app: &mut UiState, plan_index: usize) {
     } else {
         app.disabled_plan_indices.insert(plan_index);
     }
+}
+
+fn toggle_row_enabled(app: &mut UiState, row: &DisplayRow) {
+    match row {
+        DisplayRow::Item { plan_index } => toggle_item_enabled(app, *plan_index),
+        DisplayRow::SlugHeader { slug, .. } => {
+            let indices = plan_indices_for_slug(app, slug);
+            if indices.is_empty() {
+                return;
+            }
+
+            let should_enable = !indices.iter().all(|index| is_item_enabled(app, *index));
+            set_indices_enabled(app, &indices, should_enable);
+        }
+        DisplayRow::GameHeader { slug, game, .. } => {
+            let indices = plan_indices_for_game(app, slug, game);
+            if indices.is_empty() {
+                return;
+            }
+
+            let should_enable = !indices.iter().all(|index| is_item_enabled(app, *index));
+            set_indices_enabled(app, &indices, should_enable);
+        }
+    }
+}
+
+fn is_item_enabled(app: &UiState, plan_index: usize) -> bool {
+    !app.disabled_plan_indices.contains(&plan_index)
+}
+
+fn set_indices_enabled(app: &mut UiState, indices: &[usize], enabled: bool) {
+    for index in indices {
+        if enabled {
+            app.disabled_plan_indices.remove(index);
+        } else {
+            app.disabled_plan_indices.insert(*index);
+        }
+    }
+}
+
+fn toggle_all_enabled(app: &mut UiState) {
+    let indices: Vec<usize> = (0..app.view.plan.len()).collect();
+    let should_enable = !indices.iter().all(|index| is_item_enabled(app, *index));
+    set_indices_enabled(app, &indices, should_enable);
+}
+
+fn plan_indices_for_slug(app: &UiState, slug: &str) -> Vec<usize> {
+    app.view
+        .plan
+        .iter()
+        .enumerate()
+        .filter_map(|(index, item)| {
+            if item.platform_slug.as_deref() == Some(slug) {
+                Some(index)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn plan_indices_for_game(app: &UiState, slug: &str, game: &str) -> Vec<usize> {
+    app.view
+        .plan
+        .iter()
+        .enumerate()
+        .filter_map(|(index, item)| {
+            if item.platform_slug.as_deref() != Some(slug) {
+                return None;
+            }
+
+            let inferred = infer_game_name(item, &app.view.output_root);
+            if inferred == game { Some(index) } else { None }
+        })
+        .collect()
+}
+
+fn selection_state_for_indices(app: &UiState, indices: &[usize]) -> SelectionState {
+    if indices.is_empty() {
+        return SelectionState::None;
+    }
+
+    let enabled_count = indices
+        .iter()
+        .filter(|index| is_item_enabled(app, **index))
+        .count();
+
+    if enabled_count == 0 {
+        SelectionState::None
+    } else if enabled_count == indices.len() {
+        SelectionState::All
+    } else {
+        SelectionState::Some
+    }
+}
+
+fn selection_state_for_row(app: &UiState, row: &DisplayRow) -> SelectionState {
+    match row {
+        DisplayRow::Item { plan_index } => {
+            if is_item_enabled(app, *plan_index) {
+                SelectionState::All
+            } else {
+                SelectionState::None
+            }
+        }
+        DisplayRow::SlugHeader { slug, .. } => {
+            let indices = plan_indices_for_slug(app, slug);
+            selection_state_for_indices(app, &indices)
+        }
+        DisplayRow::GameHeader { slug, game, .. } => {
+            let indices = plan_indices_for_game(app, slug, game);
+            selection_state_for_indices(app, &indices)
+        }
+    }
+}
+
+fn checkbox_cell_for_row(app: &UiState, row: &DisplayRow) -> Cell<'static> {
+    let (text, style) = checkbox_text_style(selection_state_for_row(app, row));
+
+    Cell::from(Line::from(text).alignment(Alignment::Center)).style(style)
+}
+
+fn checkbox_text_style(state: SelectionState) -> (&'static str, Style) {
+    match state {
+        SelectionState::All => (
+            "[x]",
+            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+        ),
+        SelectionState::Some => (
+            "[-]",
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        ),
+        SelectionState::None => (
+            "[ ]",
+            Style::default().fg(Color::Red).add_modifier(Modifier::DIM),
+        ),
+    }
+}
+
+fn output_row_text(app: &UiState, row: &DisplayRow) -> (String, Style) {
+    match row {
+        DisplayRow::SlugHeader {
+            slug,
+            count,
+            expanded,
+        } => {
+            let icon = if *expanded { "▼" } else { "▶" };
+            (
+                format!("{} {} ({})", icon, slug, count),
+                Style::default().fg(Color::Cyan),
+            )
+        }
+        DisplayRow::GameHeader {
+            game,
+            count,
+            reason,
+            has_conflict,
+            expanded,
+            ..
+        } => {
+            let icon = if *expanded { "▼" } else { "▶" };
+            let conflict = if *has_conflict { "[CONFLICT]" } else { "" };
+            (
+                format!("  {} {} ({}) | {} | {}", icon, game, count, reason, conflict),
+                Style::default().fg(Color::Magenta),
+            )
+        }
+        DisplayRow::Item { plan_index } => {
+            let item = &app.view.plan[*plan_index];
+            let checked = !app.disabled_plan_indices.contains(plan_index);
+            let path = item
+                .destination
+                .as_ref()
+                .map(|dst| relative_display(&app.view.output_root, dst))
+                .unwrap_or_else(|| String::from("Unclassified"));
+            let conflict = if item.has_conflict { "[CONFLICT]" } else { "" };
+            (
+                format!("    {} | {} | {}", path, item.reason, conflict),
+                transfer_state_style(checked),
+            )
+        }
+    }
+}
+
+fn horizontal_slice(input: &str, offset: usize) -> String {
+    input.chars().skip(offset).collect()
+}
+
+fn scroll_output_left(app: &mut UiState, amount: usize) {
+    app.output_horizontal_offset = app.output_horizontal_offset.saturating_sub(amount);
+}
+
+fn scroll_output_right(app: &mut UiState, amount: usize) {
+    app.output_horizontal_offset = app.output_horizontal_offset.saturating_add(amount);
 }
 
 fn clamp_selected(app: &mut UiState) {
@@ -419,31 +632,43 @@ fn draw_ui(frame: &mut Frame, app: &mut UiState) {
 fn draw_header(frame: &mut Frame, app: &UiState, area: Rect) {
     let header_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([
+            Constraint::Percentage(46),
+            Constraint::Length(5),
+            Constraint::Min(0),
+        ])
         .split(area);
 
-    let left = Paragraph::new(vec![
-        Line::from(vec![Span::styled(
-            "Source",
-            Style::default().fg(Color::Cyan),
-        )]),
-        Line::from(app.view.source_root.display().to_string()),
-    ])
-    .alignment(Alignment::Left)
-    .block(Block::default().borders(Borders::ALL));
+    let left = Paragraph::new(Line::from(display_path_for_ui(&app.view.source_root)))
+        .alignment(Alignment::Left)
+        .block(
+            Block::default()
+                .title(Span::styled("Source", Style::default().fg(Color::Cyan)))
+                .borders(Borders::ALL),
+        );
 
-    let right = Paragraph::new(vec![
-        Line::from(vec![Span::styled(
-            "Destination",
-            Style::default().fg(Color::Cyan),
-        )]),
-        Line::from(app.view.output_root.display().to_string()),
-    ])
-    .alignment(Alignment::Right)
-    .block(Block::default().borders(Borders::ALL));
+    let right = Paragraph::new(Line::from(display_path_for_ui(&app.view.output_root)))
+        .alignment(Alignment::Right)
+        .block(
+            Block::default()
+                .title(Span::styled("Destination", Style::default().fg(Color::Cyan)))
+                .title_alignment(Alignment::Right)
+                .borders(Borders::ALL),
+        );
+
+    let all_indices: Vec<usize> = (0..app.view.plan.len()).collect();
+    let (all_checkbox, all_style) = checkbox_text_style(selection_state_for_indices(app, &all_indices));
+    let center = Paragraph::new(Line::from(Span::styled(all_checkbox, all_style)))
+        .alignment(Alignment::Center)
+        .block(
+            Block::default()
+                .title(Span::styled("All", Style::default().fg(Color::Cyan)))
+                .borders(Borders::ALL),
+        );
 
     frame.render_widget(left, header_chunks[0]);
-    frame.render_widget(right, header_chunks[1]);
+    frame.render_widget(center, header_chunks[1]);
+    frame.render_widget(right, header_chunks[2]);
 }
 
 fn draw_body(frame: &mut Frame, app: &mut UiState, area: Rect) {
@@ -454,7 +679,7 @@ fn draw_body(frame: &mut Frame, app: &mut UiState, area: Rect) {
         .constraints([
             Constraint::Percentage(46),
             Constraint::Length(5),
-            Constraint::Percentage(49),
+            Constraint::Min(0),
         ])
         .split(area);
 
@@ -480,15 +705,15 @@ fn draw_body(frame: &mut Frame, app: &mut UiState, area: Rect) {
         .cloned()
         .collect();
 
-    let mut input_state = ListState::default();
+    let mut input_state = TableState::default();
     if !visible_rows.is_empty() {
         let relative_selected = app.selected.saturating_sub(app.list_offset);
-        input_state.select(Some(relative_selected + 1));
+        input_state.select(Some(relative_selected));
     }
 
-    let mut output_state = TableState::default();
+    let mut output_state = ListState::default();
     if !visible_rows.is_empty() {
-        output_state.select(Some(app.selected.saturating_sub(app.list_offset)));
+        output_state.select(Some(app.selected.saturating_sub(app.list_offset) + 1));
     }
 
     let mut toggle_state = TableState::default();
@@ -500,66 +725,10 @@ fn draw_body(frame: &mut Frame, app: &mut UiState, area: Rect) {
     let mut toggle_rows: Vec<Row> = vec![Row::new(vec![Cell::from(String::new())])];
     toggle_rows.extend(visible_rows
         .iter()
-        .map(|row| match row {
-            DisplayRow::SlugHeader { .. } | DisplayRow::GameHeader { .. } => {
-                Row::new(vec![Cell::from(String::new())])
-            }
-            DisplayRow::Item { plan_index } => {
-                let checked = !app.disabled_plan_indices.contains(plan_index);
-                let checkbox = if checked { "[x]" } else { "[ ]" };
-                let checkbox_style = if checked {
-                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(Color::Red).add_modifier(Modifier::DIM)
-                };
-
-                Row::new(vec![Cell::from(Line::from(checkbox).alignment(Alignment::Center)).style(checkbox_style)])
-            }
-        })
+        .map(|row| Row::new(vec![checkbox_cell_for_row(app, row)]))
     );
 
-    let mut input_items: Vec<ListItem> = vec![
-        ListItem::new(Line::from(vec![Span::styled(
-            "Path",
-            Style::default().fg(Color::Yellow),
-        )])),
-    ];
-
-    input_items.extend(visible_rows.iter()
-        .map(|row| match row {
-            DisplayRow::SlugHeader {
-                slug,
-                count,
-                expanded,
-            } => {
-                let icon = if *expanded { "▼" } else { "▶" };
-                ListItem::new(Line::from(vec![Span::styled(
-                    format!("{} {} ({})", icon, slug, count),
-                    Style::default().fg(Color::Cyan),
-                )]))
-            }
-            DisplayRow::GameHeader {
-                game,
-                count,
-                expanded,
-                ..
-            } => {
-                let icon = if *expanded { "▼" } else { "▶" };
-                ListItem::new(Line::from(vec![Span::styled(
-                    format!("  {} {} ({})", icon, game, count),
-                    Style::default().fg(Color::Magenta),
-                )]))
-            }
-            DisplayRow::Item { plan_index } => {
-                let item = &app.view.plan[*plan_index];
-                let source = relative_display(&app.view.source_root, &item.source);
-                ListItem::new(Line::from(format!("    {}", source)))
-            }
-        })
-    );
-
-    let output_rows: Vec<Row> = visible_rows
-        .iter()
+    let input_rows: Vec<Row> = visible_rows.iter()
         .map(|row| match row {
             DisplayRow::SlugHeader {
                 slug,
@@ -570,67 +739,58 @@ fn draw_body(frame: &mut Frame, app: &mut UiState, area: Rect) {
                 Row::new(vec![
                     Cell::from(format!("{} {} ({})", icon, slug, count)),
                     Cell::from(String::new()),
-                    Cell::from(String::new()),
-                    Cell::from(String::new()),
                 ])
                 .style(Style::default().fg(Color::Cyan))
             }
             DisplayRow::GameHeader {
                 game,
                 count,
-                confidence,
-                reason,
-                has_conflict,
                 expanded,
+                confidence,
                 ..
             } => {
                 let icon = if *expanded { "▼" } else { "▶" };
                 Row::new(vec![
                     Cell::from(format!("  {} {} ({})", icon, game, count)),
                     Cell::from(confidence.as_str()).style(confidence_style(*confidence, true)),
-                    Cell::from(reason.clone()),
-                    Cell::from(if *has_conflict { "[CONFLICT]" } else { "" }),
                 ])
                 .style(Style::default().fg(Color::Magenta))
             }
             DisplayRow::Item { plan_index } => {
                 let item = &app.view.plan[*plan_index];
-                let marker = if item.has_conflict { " [CONFLICT]" } else { "" };
+                let source = relative_display(&app.view.source_root, &item.source);
                 let checked = !app.disabled_plan_indices.contains(plan_index);
-                let row_style = transfer_state_style(checked);
-
-                let path = item
-                    .destination
-                    .as_ref()
-                    .map(|dst| relative_display(&app.view.output_root, dst))
-                    .unwrap_or_else(|| String::from("Unclassified"));
-
                 Row::new(vec![
-                    Cell::from(format!("    {}", path)),
+                    Cell::from(format!("    {}", source)),
                     Cell::from(item.confidence.as_str())
                         .style(confidence_style(item.confidence, checked)),
-                    Cell::from(item.reason.clone()),
-                    Cell::from(marker).style(if item.has_conflict {
-                        Style::default().fg(Color::Red)
-                    } else {
-                        Style::default()
-                    }),
                 ])
-                .style(row_style)
+                .style(transfer_state_style(checked))
             }
         })
         .collect();
 
-    let input_list = List::new(input_items)
+    let input_table = Table::new(
+        input_rows,
+        [Constraint::Min(0), Constraint::Length(10)],
+    )
+    .header(
+        Row::new(vec!["Path", "Confidence"]).style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(ratatui::style::Modifier::BOLD),
+        ),
+    )
         .block(
             Block::default()
-                .title("Input files")
+                .title("Discovered Games")
                 .borders(Borders::ALL),
         )
         .highlight_style(Style::default().bg(Color::DarkGray))
-        .highlight_symbol("> ");
+        .highlight_symbol("")
+        .column_spacing(1);
 
-    frame.render_stateful_widget(input_list, body_chunks[0], &mut input_state);
+    frame.render_stateful_widget(input_table, body_chunks[0], &mut input_state);
     let toggle_table = Table::new(toggle_rows, [Constraint::Length(5)])
         .block(Block::default().title("Sel").borders(Borders::ALL))
         .highlight_style(Style::default().bg(Color::DarkGray))
@@ -639,34 +799,32 @@ fn draw_body(frame: &mut Frame, app: &mut UiState, area: Rect) {
 
     frame.render_stateful_widget(toggle_table, body_chunks[1], &mut toggle_state);
 
-    let output_table = Table::new(
-        output_rows,
-        [
-            Constraint::Min(50),
-            Constraint::Length(10),
-            Constraint::Min(18),
-            Constraint::Length(11),
-        ],
-    )
-    .header(
-        Row::new(vec!["Path", "Confidence", "Reason", "Conflict"]).style(
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(ratatui::style::Modifier::BOLD),
-        ),
-    )
-    .block(
-        Block::default()
-            .title("Output preview (relative)")
-            .borders(Borders::ALL),
-    )
-    .highlight_style(Style::default().bg(Color::DarkGray))
-    .highlight_symbol("> ")
-    .column_spacing(1);
+    let mut output_items: Vec<ListItem> = vec![ListItem::new(Line::from(Span::styled(
+        horizontal_slice("Path | Reason | Conflict", app.output_horizontal_offset),
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(ratatui::style::Modifier::BOLD),
+    )))];
 
-    frame.render_stateful_widget(output_table, body_chunks[2], &mut output_state);
+    output_items.extend(visible_rows.iter().map(|row| {
+        let (text, style) = output_row_text(app, row);
+        ListItem::new(Line::from(horizontal_slice(&text, app.output_horizontal_offset))).style(style)
+    }));
 
-    let mut scrollbar_state = ScrollbarState::new(rows.len()).position(app.list_offset);
+    let output_list = List::new(output_items)
+        .block(
+            Block::default()
+                .title("Output Locations")
+                .borders(Borders::ALL),
+        )
+        .highlight_style(Style::default().bg(Color::DarkGray))
+        .highlight_symbol("");
+
+    frame.render_stateful_widget(output_list, body_chunks[2], &mut output_state);
+
+    let mut scrollbar_state = ScrollbarState::new(rows.len())
+        .position(app.list_offset)
+        .viewport_content_length(viewport_height);
     let scrollbar = Scrollbar::default().orientation(ScrollbarOrientation::VerticalRight);
     frame.render_stateful_widget(scrollbar, body_chunks[2], &mut scrollbar_state);
 }
@@ -680,21 +838,30 @@ fn draw_footer(frame: &mut Frame, app: &UiState, area: Rect) {
     let total_items = app.view.plan.len();
     let disabled_items = app.disabled_plan_indices.len();
     let enabled_items = total_items.saturating_sub(disabled_items);
+    let (ready, skipped_unclassified, skipped_conflicts, skipped_disabled) =
+        transfer_sanity_counts(app);
+    let mode_label = app.view.transfer_mode.prompt_label();
 
-    let left = Paragraph::new(Line::from(format!(
-        "Scanned: {} | Classified: {} | Unclassified: {} | Conflicts: {} | Skipped: {} | Enabled: {} | Disabled: {}",
-        app.view.summary.scanned_files,
-        app.view.summary.planned_moves,
-        app.view.summary.unclassified,
-        app.view.summary.conflicts,
-        app.view.summary.skipped,
-        enabled_items,
-        disabled_items
-    )))
+    let left = Paragraph::new(vec![
+        Line::from(format!(
+            "{} sanity check: ready {} | skipped disabled {} | conflicts {} | unclassified {}",
+            mode_label, ready, skipped_disabled, skipped_conflicts, skipped_unclassified
+        )),
+        Line::from(format!(
+            "Scanned: {} | Classified: {} | Unclassified: {} | Conflicts: {} | Skipped: {} | Enabled: {} | Disabled: {}",
+            app.view.summary.scanned_files,
+            app.view.summary.planned_moves,
+            app.view.summary.unclassified,
+            app.view.summary.conflicts,
+            app.view.summary.skipped,
+            enabled_items,
+            disabled_items
+        )),
+    ])
     .block(Block::default().borders(Borders::ALL));
 
     let right = Paragraph::new(Line::from(vec![
-        Span::raw("Move ROMS? "),
+        Span::raw(format!("{}? ", app.view.transfer_mode.prompt_label())),
         Span::styled("[ Y ]", Style::default().fg(Color::Green)),
         Span::raw("  "),
         Span::styled("[ N ]", Style::default().fg(Color::Red)),
@@ -704,6 +871,34 @@ fn draw_footer(frame: &mut Frame, app: &UiState, area: Rect) {
 
     frame.render_widget(left, footer_chunks[0]);
     frame.render_widget(right, footer_chunks[1]);
+}
+
+fn transfer_sanity_counts(app: &UiState) -> (usize, usize, usize, usize) {
+    let mut ready = 0usize;
+    let mut skipped_unclassified = 0usize;
+    let mut skipped_conflicts = 0usize;
+    let mut skipped_disabled = 0usize;
+
+    for (index, item) in app.view.plan.iter().enumerate() {
+        if app.disabled_plan_indices.contains(&index) {
+            skipped_disabled += 1;
+            continue;
+        }
+
+        if item.destination.is_none() {
+            skipped_unclassified += 1;
+            continue;
+        }
+
+        if item.has_conflict {
+            skipped_conflicts += 1;
+            continue;
+        }
+
+        ready += 1;
+    }
+
+    (ready, skipped_unclassified, skipped_conflicts, skipped_disabled)
 }
 
 fn footer_action_rects(area: Rect) -> (Rect, Rect) {
@@ -744,6 +939,33 @@ fn clicked_yes(area: Rect, x: u16, y: u16) -> bool {
     x >= yes.x && x < yes.x + yes.width && y == yes.y
 }
 
+fn clicked_all_toggle(area: Rect, x: u16, y: u16) -> bool {
+    let header = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(4),
+            Constraint::Min(5),
+            Constraint::Length(3),
+        ])
+        .split(area)[0];
+
+    let header_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(46),
+            Constraint::Length(5),
+            Constraint::Min(0),
+        ])
+        .split(header);
+
+    let center = header_chunks[1];
+    let content_y = center.y.saturating_add(1);
+    x >= center.x
+        && x < center.x.saturating_add(center.width)
+        && y >= content_y
+        && y < content_y.saturating_add(center.height.saturating_sub(2))
+}
+
 fn clicked_no(area: Rect, x: u16, y: u16) -> bool {
     let (_, no) = footer_action_rects(area);
     x >= no.x && x < no.x + no.width && y == no.y
@@ -760,6 +982,12 @@ fn handle_body_click(app: &mut UiState, x: u16, y: u16) {
     let Some(row) = rows.get(click.row_index) else {
         return;
     };
+
+    if matches!(click.pane, Pane::Toggle) {
+        toggle_row_enabled(app, row);
+        clamp_selected(app);
+        return;
+    }
 
     match row {
         DisplayRow::SlugHeader { slug, expanded, .. } => {
@@ -782,11 +1010,7 @@ fn handle_body_click(app: &mut UiState, x: u16, y: u16) {
                 app.expanded_games.insert(key);
             }
         }
-        DisplayRow::Item { plan_index } => {
-            if matches!(click.pane, Pane::Toggle) {
-                toggle_item_enabled(app, *plan_index);
-            }
-        }
+        DisplayRow::Item { .. } => {}
     }
 
     clamp_selected(app);
@@ -808,7 +1032,7 @@ fn clicked_body_row_info(app: &UiState, x: u16, y: u16) -> Option<BodyClick> {
         .constraints([
             Constraint::Percentage(46),
             Constraint::Length(5),
-            Constraint::Percentage(49),
+            Constraint::Min(0),
         ])
         .split(body);
 
@@ -874,7 +1098,7 @@ fn handle_scrollbar_mouse(app: &mut UiState, x: u16, y: u16) -> bool {
         .constraints([
             Constraint::Percentage(46),
             Constraint::Length(5),
-            Constraint::Percentage(49),
+            Constraint::Min(0),
         ])
         .split(body);
 
@@ -1026,13 +1250,15 @@ fn draw_loading(frame: &mut Frame, state: &LoadingUpdate) {
         area,
     );
 
-    let modal = centered_rect(80, 30, area);
+    // Keep the modal snug to its content so it doesn't look too tall/short on resize.
+    let modal_width = area.width.saturating_sub(4).clamp(70, 140);
+    let modal_height = 9u16.min(area.height.saturating_sub(2));
+    let modal = centered_rect_fixed(modal_width, modal_height, area);
     frame.render_widget(Clear, modal);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
@@ -1054,11 +1280,9 @@ fn draw_loading(frame: &mut Frame, state: &LoadingUpdate) {
         state.phase_index.max(1),
         state.phase_total.max(1)
     ));
-    let current = Paragraph::new(format!("Current: {}", state.current));
-    let detail = Paragraph::new(format!(
-        "Phase progress: {} / {}",
-        state.processed,
-        state.total
+    let current = Paragraph::new(format!(
+        "Current: {}",
+        normalize_windows_display_path(&state.current)
     ));
 
     let ratio = if state.total == 0 {
@@ -1068,7 +1292,11 @@ fn draw_loading(frame: &mut Frame, state: &LoadingUpdate) {
     };
 
     let bar = Gauge::default()
-        .block(Block::default().borders(Borders::ALL).title("Phase progress"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!("Phase progress {}/{}", state.processed, state.total)),
+        )
         .style(Style::default().bg(Color::DarkGray))
         .gauge_style(
             Style::default()
@@ -1082,28 +1310,22 @@ fn draw_loading(frame: &mut Frame, state: &LoadingUpdate) {
     frame.render_widget(phase, chunks[0]);
     frame.render_widget(phase_counter, chunks[1]);
     frame.render_widget(current, chunks[2]);
-    frame.render_widget(detail, chunks[3]);
-    frame.render_widget(bar, chunks[4]);
+    frame.render_widget(bar, chunks[3]);
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
+fn centered_rect_fixed(width: u16, height: u16, area: Rect) -> Rect {
+    let width = width.min(area.width.saturating_sub(2)).max(3);
+    let height = height.min(area.height.saturating_sub(2)).max(3);
 
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
+    let x = area.x.saturating_add((area.width.saturating_sub(width)) / 2);
+    let y = area.y.saturating_add((area.height.saturating_sub(height)) / 2);
+
+    Rect {
+        x,
+        y,
+        width,
+        height,
+    }
 }
 
 fn inner_modal(area: Rect) -> Rect {
@@ -1113,6 +1335,22 @@ fn inner_modal(area: Rect) -> Rect {
         width: area.width.saturating_sub(2),
         height: area.height.saturating_sub(2),
     }
+}
+
+fn display_path_for_ui(path: &Path) -> String {
+    normalize_windows_display_path(&path.display().to_string())
+}
+
+fn normalize_windows_display_path(input: &str) -> String {
+    if let Some(rest) = input.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{}", rest);
+    }
+
+    if let Some(rest) = input.strip_prefix(r"\\?\") {
+        return rest.to_string();
+    }
+
+    input.to_string()
 }
 
 fn transfer_state_style(enabled: bool) -> Style {

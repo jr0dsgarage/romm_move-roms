@@ -1,6 +1,21 @@
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransferMode {
+	Copy,
+	Move,
+}
+
+impl TransferMode {
+	pub fn prompt_label(self) -> &'static str {
+		match self {
+			Self::Copy => "Copy Files",
+			Self::Move => "Move Files",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Confidence {
 	Exact,
 	High,

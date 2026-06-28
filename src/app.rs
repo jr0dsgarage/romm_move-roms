@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    fs,
     path::{Path, PathBuf},
     sync::mpsc,
     thread,
@@ -9,7 +10,7 @@ use anyhow::{bail, Context, Result};
 
 use crate::{
     classifier::Classifier,
-    model::{PlannedMove, Summary},
+    model::{PlannedMove, Summary, TransferMode},
     scanner,
     tui,
 };
@@ -19,7 +20,7 @@ struct PreparedData {
     summary: Summary,
 }
 
-pub fn run(source_root: PathBuf) -> Result<()> {
+pub fn run(source_root: PathBuf, transfer_mode: TransferMode) -> Result<()> {
     let source_root = source_root
         .canonicalize()
         .with_context(|| format!("Source path is not accessible: {}", source_root.display()))?;
@@ -107,12 +108,107 @@ pub fn run(source_root: PathBuf) -> Result<()> {
         .join()
         .map_err(|_| anyhow::anyhow!("Scan worker thread panicked"))??;
 
-    tui::run(tui::AppView {
+    let selection = tui::run(tui::AppView {
         source_root,
         output_root,
         plan: prepared.plan,
         summary: prepared.summary,
-    })
+        transfer_mode,
+    })?;
+
+    if !selection.confirmed {
+        println!("{} canceled. No files were transferred.", transfer_mode.prompt_label());
+        return Ok(());
+    }
+
+    let stats = execute_transfers(
+        &selection.plan,
+        &selection.disabled_plan_indices,
+        transfer_mode,
+    )?;
+
+    println!(
+        "{} complete: {} transferred | {} skipped (unclassified/conflict/disabled)",
+        transfer_mode.prompt_label(),
+        stats.transferred,
+        stats.skipped
+    );
+
+    Ok(())
+}
+
+struct TransferStats {
+    transferred: usize,
+    skipped: usize,
+}
+
+fn execute_transfers(
+    plan: &[PlannedMove],
+    disabled_plan_indices: &HashSet<usize>,
+    transfer_mode: TransferMode,
+) -> Result<TransferStats> {
+    let mut transferred = 0usize;
+    let mut skipped = 0usize;
+
+    for (index, item) in plan.iter().enumerate() {
+        if disabled_plan_indices.contains(&index) {
+            skipped += 1;
+            continue;
+        }
+
+        let Some(destination) = &item.destination else {
+            skipped += 1;
+            continue;
+        };
+
+        if item.has_conflict {
+            skipped += 1;
+            continue;
+        }
+
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!("Failed creating destination folder: {}", parent.display())
+            })?;
+        }
+
+        match transfer_mode {
+            TransferMode::Copy => {
+                fs::copy(&item.source, destination).with_context(|| {
+                    format!(
+                        "Failed copying {} -> {}",
+                        item.source.display(),
+                        destination.display()
+                    )
+                })?;
+            }
+            TransferMode::Move => {
+                move_file(&item.source, destination)?;
+            }
+        }
+
+        transferred += 1;
+    }
+
+    Ok(TransferStats { transferred, skipped })
+}
+
+fn move_file(source: &Path, destination: &Path) -> Result<()> {
+    match fs::rename(source, destination) {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            fs::copy(source, destination).with_context(|| {
+                format!(
+                    "Failed copying during move {} -> {}",
+                    source.display(),
+                    destination.display()
+                )
+            })?;
+            fs::remove_file(source)
+                .with_context(|| format!("Failed removing moved source: {}", source.display()))?;
+            Ok(())
+        }
+    }
 }
 
 fn plan_destination_for_game(
