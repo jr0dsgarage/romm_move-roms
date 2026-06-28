@@ -36,6 +36,7 @@ pub fn run(source_root: PathBuf) -> Result<()> {
 
     let (progress_tx, progress_rx) = mpsc::channel();
     let worker = thread::spawn(move || -> Result<PreparedData> {
+        const PHASE_TOTAL: usize = 2;
         let allowed_extensions = classifier.allowed_extensions();
 
         let scan_total = scanner::count_scan_candidates(&worker_source, &worker_output)?;
@@ -47,6 +48,8 @@ pub fn run(source_root: PathBuf) -> Result<()> {
             |progress| {
                 let _ = progress_tx.send(tui::LoadingUpdate {
                     phase: String::from("Scanning folders"),
+                    phase_index: 1,
+                    phase_total: PHASE_TOTAL,
                     current: progress.current_path.display().to_string(),
                     processed: progress.processed,
                     total: progress.total,
@@ -70,6 +73,8 @@ pub fn run(source_root: PathBuf) -> Result<()> {
 
             let _ = progress_tx.send(tui::LoadingUpdate {
                 phase: String::from(phase),
+                phase_index: 2,
+                phase_total: PHASE_TOTAL,
                 current: source.display().to_string(),
                 processed: index + 1,
                 total: files.len(),
@@ -119,7 +124,7 @@ fn plan_destination_for_game(
     let file_name = source_file.file_name()?;
     let rel = source_file.strip_prefix(source_root).ok()?;
 
-    let game_folder = infer_game_folder_name(rel, source_file)?;
+    let game_folder = infer_game_folder_name(rel, source_file, slug)?;
     let mut destination = output_root.join(slug).join(game_folder);
 
     if let Some(category) = detect_romm_category(rel) {
@@ -129,7 +134,7 @@ fn plan_destination_for_game(
     Some(destination.join(file_name))
 }
 
-fn infer_game_folder_name(relative_path: &Path, source_file: &Path) -> Option<String> {
+fn infer_game_folder_name(relative_path: &Path, source_file: &Path, slug: &str) -> Option<String> {
     let mut components: Vec<String> = relative_path
         .iter()
         .filter_map(|c| c.to_str())
@@ -147,7 +152,11 @@ fn infer_game_folder_name(relative_path: &Path, source_file: &Path) -> Option<St
     let parent_candidate = components
         .iter()
         .rev()
-        .find(|component| !is_non_game_container(component))
+        .find(|component| {
+            !is_non_game_container(component)
+                && !is_platform_marker(component, slug)
+                && !is_library_bucket(component)
+        })
         .cloned();
 
     let raw = if let Some(parent) = parent_candidate {
@@ -190,7 +199,8 @@ fn is_non_game_container(component: &str) -> bool {
 
     matches!(
         lower.as_str(),
-        "roms"
+        "rom"
+            | "roms"
             | "bios"
             | "cdi"
             | "gdi"
@@ -213,6 +223,57 @@ fn is_non_game_container(component: &str) -> bool {
             | "translation"
             | "prototype"
     )
+}
+
+fn is_platform_marker(component: &str, slug: &str) -> bool {
+    let component_norm = normalize_for_compare(component);
+    let slug_norm = normalize_for_compare(slug);
+
+    if component_norm.is_empty() || slug_norm.is_empty() {
+        return false;
+    }
+
+    component_norm == slug_norm
+        || component_norm.contains(&slug_norm)
+        || slug_norm.contains(&component_norm)
+}
+
+fn is_library_bucket(component: &str) -> bool {
+    let lower = component.trim().to_ascii_lowercase();
+
+    matches!(lower.as_str(), "0day" | "0-day" | "1g1r" | "collection") || is_range_bucket(&lower)
+}
+
+fn is_range_bucket(component: &str) -> bool {
+    let compact: String = component
+        .chars()
+        .filter(|ch| !ch.is_ascii_whitespace())
+        .collect();
+
+    if compact.len() == 1 {
+        return compact.chars().all(|ch| ch.is_ascii_alphanumeric());
+    }
+
+    if compact.len() == 3 {
+        let mut chars = compact.chars();
+        let first = chars.next().unwrap_or_default();
+        let middle = chars.next().unwrap_or_default();
+        let last = chars.next().unwrap_or_default();
+
+        return first.is_ascii_alphanumeric()
+            && last.is_ascii_alphanumeric()
+            && matches!(middle, '-' | '_' | '.');
+    }
+
+    compact == "0-9"
+}
+
+fn normalize_for_compare(input: &str) -> String {
+    input
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .map(|ch| ch.to_ascii_lowercase())
+        .collect()
 }
 
 fn normalize_game_name(input: &str) -> String {
@@ -288,4 +349,48 @@ fn summarize(plan: &[PlannedMove], skipped: usize) -> Summary {
     }
 
     summary
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::{detect_romm_category, infer_game_folder_name};
+
+    #[test]
+    fn falls_back_to_file_stem_for_platform_container_paths() {
+        let relative = Path::new(r"0day\Atari 2600\roms\2Pak.bin");
+        let source = Path::new(r"0day\Atari 2600\roms\2Pak.bin");
+
+        let game = infer_game_folder_name(relative, source, "atari2600");
+
+        assert_eq!(game.as_deref(), Some("2Pak"));
+    }
+
+    #[test]
+    fn falls_back_to_archive_stem_for_bucketed_library_paths() {
+        let relative = Path::new(r"GBA ENGLISH\GBA\A-D\Disney.7z");
+        let source = Path::new(r"GBA ENGLISH\GBA\A-D\Disney.7z");
+
+        let game = infer_game_folder_name(relative, source, "gba");
+
+        assert_eq!(game.as_deref(), Some("Disney"));
+    }
+
+    #[test]
+    fn keeps_meaningful_parent_folder_as_game_name() {
+        let relative = Path::new(r"240pTestSuite\240pTS.smc");
+        let source = Path::new(r"240pTestSuite\240pTS.smc");
+
+        let game = infer_game_folder_name(relative, source, "snes");
+
+        assert_eq!(game.as_deref(), Some("240pTestSuite"));
+    }
+
+    #[test]
+    fn detects_documented_multifile_categories() {
+        let relative = Path::new(r"Some Game\patch\fix.zip");
+
+        assert_eq!(detect_romm_category(relative).as_deref(), Some("patch"));
+    }
 }

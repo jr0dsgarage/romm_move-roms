@@ -2,304 +2,1773 @@
   "platforms": [
     {
       "slug": "nes",
-      "aliases": ["nintendo entertainment system", "famicom", "nes"],
-      "extensions": ["nes", "fds", "zip", "7z"],
-      "folder_hints": ["nes", "famicom"],
-      "dat_tokens": ["nes", "famicom"]
+      "aliases": [
+        "nintendo entertainment system",
+        "famicom",
+        "nes"
+      ],
+      "extensions": [
+        "nes",
+        "fds",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "nes",
+        "famicom"
+      ],
+      "dat_tokens": [
+        "nes",
+        "famicom"
+      ]
     },
     {
       "slug": "snes",
-      "aliases": ["super nintendo", "super famicom", "snes", "sfam"],
-      "extensions": ["sfc", "smc", "fig", "zip", "7z"],
-      "folder_hints": ["snes", "super nintendo", "super famicom"],
-      "dat_tokens": ["snes", "sfam"]
+      "aliases": [
+        "super nintendo",
+        "super famicom",
+        "snes",
+        "sfam"
+      ],
+      "extensions": [
+        "sfc",
+        "smc",
+        "fig",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "snes",
+        "super nintendo",
+        "super famicom"
+      ],
+      "dat_tokens": [
+        "snes",
+        "sfam"
+      ]
     },
     {
       "slug": "n64",
-      "aliases": ["nintendo 64", "n64"],
-      "extensions": ["z64", "n64", "v64", "zip", "7z"],
-      "folder_hints": ["n64", "nintendo 64"],
-      "dat_tokens": ["n64", "nintendo 64"]
+      "aliases": [
+        "nintendo 64",
+        "n64"
+      ],
+      "extensions": [
+        "z64",
+        "n64",
+        "v64",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "n64",
+        "nintendo 64"
+      ],
+      "dat_tokens": [
+        "n64",
+        "nintendo 64"
+      ]
     },
     {
       "slug": "ngc",
-      "aliases": ["gamecube", "ngc"],
-      "extensions": ["iso", "gcm", "gcz", "rvz"],
-      "folder_hints": ["gamecube", "ngc"],
-      "dat_tokens": ["gamecube", "ngc"]
+      "aliases": [
+        "gamecube",
+        "ngc"
+      ],
+      "extensions": [
+        "iso",
+        "gcm",
+        "gcz",
+        "rvz"
+      ],
+      "folder_hints": [
+        "gamecube",
+        "ngc"
+      ],
+      "dat_tokens": [
+        "gamecube",
+        "ngc"
+      ]
     },
     {
       "slug": "wii",
-      "aliases": ["wii"],
-      "extensions": ["iso", "wbfs", "rvz"],
-      "folder_hints": ["wii"],
-      "dat_tokens": ["wii"]
+      "aliases": [
+        "wii"
+      ],
+      "extensions": [
+        "iso",
+        "wbfs",
+        "rvz"
+      ],
+      "folder_hints": [
+        "wii"
+      ],
+      "dat_tokens": [
+        "wii"
+      ]
     },
     {
       "slug": "wiiu",
-      "aliases": ["wii u", "wiiu"],
-      "extensions": ["wud", "wux", "rpx", "zip"],
-      "folder_hints": ["wiiu", "wii u"],
-      "dat_tokens": ["wiiu"]
+      "aliases": [
+        "wii u",
+        "wiiu"
+      ],
+      "extensions": [
+        "wud",
+        "wux",
+        "rpx",
+        "zip"
+      ],
+      "folder_hints": [
+        "wiiu",
+        "wii u"
+      ],
+      "dat_tokens": [
+        "wiiu"
+      ]
     },
     {
       "slug": "3ds",
-      "aliases": ["nintendo 3ds", "3ds"],
-      "extensions": ["3ds", "cia", "cci"],
-      "folder_hints": ["3ds", "nintendo 3ds"],
-      "dat_tokens": ["3ds", "nintendo 3ds"]
+      "aliases": [
+        "nintendo 3ds",
+        "3ds"
+      ],
+      "extensions": [
+        "3ds",
+        "cia",
+        "cci"
+      ],
+      "folder_hints": [
+        "3ds",
+        "nintendo 3ds"
+      ],
+      "dat_tokens": [
+        "3ds",
+        "nintendo 3ds"
+      ]
     },
     {
       "slug": "nds",
-      "aliases": ["nintendo ds", "nds"],
-      "extensions": ["nds", "zip", "7z"],
-      "folder_hints": ["nds", "nintendo ds"],
-      "dat_tokens": ["nds"]
+      "aliases": [
+        "nintendo ds",
+        "nds"
+      ],
+      "extensions": [
+        "nds",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "nds",
+        "nintendo ds"
+      ],
+      "dat_tokens": [
+        "nds"
+      ]
     },
     {
       "slug": "gb",
-      "aliases": ["game boy", "gb"],
-      "extensions": ["gb", "sgb", "zip", "7z"],
-      "folder_hints": ["gb", "game boy"],
-      "dat_tokens": ["game boy", "gb"]
+      "aliases": [
+        "game boy",
+        "gb"
+      ],
+      "extensions": [
+        "gb",
+        "sgb",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "gb",
+        "game boy"
+      ],
+      "dat_tokens": [
+        "game boy",
+        "gb"
+      ]
     },
     {
       "slug": "gbc",
-      "aliases": ["game boy color", "gbc"],
-      "extensions": ["gbc", "zip", "7z"],
-      "folder_hints": ["gbc", "game boy color"],
-      "dat_tokens": ["game boy color", "gbc"]
+      "aliases": [
+        "game boy color",
+        "gbc"
+      ],
+      "extensions": [
+        "gbc",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "gbc",
+        "game boy color"
+      ],
+      "dat_tokens": [
+        "game boy color",
+        "gbc"
+      ]
     },
     {
       "slug": "gba",
-      "aliases": ["game boy advance", "gba"],
-      "extensions": ["gba", "zip", "7z"],
-      "folder_hints": ["gba", "game boy advance"],
-      "dat_tokens": ["gba", "game boy advance"]
+      "aliases": [
+        "game boy advance",
+        "gba"
+      ],
+      "extensions": [
+        "gba",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "gba",
+        "game boy advance"
+      ],
+      "dat_tokens": [
+        "gba",
+        "game boy advance"
+      ]
     },
     {
       "slug": "sms",
-      "aliases": ["master system", "sms"],
-      "extensions": ["sms", "zip", "7z"],
-      "folder_hints": ["sms", "master system"],
-      "dat_tokens": ["sms"]
+      "aliases": [
+        "master system",
+        "sms"
+      ],
+      "extensions": [
+        "sms",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "sms",
+        "master system"
+      ],
+      "dat_tokens": [
+        "sms"
+      ]
     },
     {
       "slug": "genesis",
-      "aliases": ["genesis", "megadrive", "mega drive"],
-      "extensions": ["md", "bin", "gen", "smd", "zip", "7z"],
-      "folder_hints": ["genesis", "mega drive", "megadrive"],
-      "dat_tokens": ["genesis", "megadrive"]
+      "aliases": [
+        "genesis",
+        "megadrive",
+        "mega drive"
+      ],
+      "extensions": [
+        "md",
+        "bin",
+        "gen",
+        "smd",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "genesis",
+        "mega drive",
+        "megadrive"
+      ],
+      "dat_tokens": [
+        "genesis",
+        "megadrive"
+      ]
     },
     {
       "slug": "sega32",
-      "aliases": ["32x", "sega 32x"],
-      "extensions": ["32x", "bin", "zip"],
-      "folder_hints": ["32x"],
-      "dat_tokens": ["32x"]
+      "aliases": [
+        "32x",
+        "sega 32x"
+      ],
+      "extensions": [
+        "32x",
+        "bin",
+        "zip"
+      ],
+      "folder_hints": [
+        "32x"
+      ],
+      "dat_tokens": [
+        "32x"
+      ]
     },
     {
       "slug": "segacd",
-      "aliases": ["sega cd", "mega cd", "segacd"],
-      "extensions": ["cue", "bin", "iso", "chd"],
-      "folder_hints": ["sega cd", "mega cd", "segacd"],
-      "dat_tokens": ["sega cd", "mega cd", "segacd"]
+      "aliases": [
+        "sega cd",
+        "mega cd",
+        "segacd"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd"
+      ],
+      "folder_hints": [
+        "sega cd",
+        "mega cd",
+        "segacd"
+      ],
+      "dat_tokens": [
+        "sega cd",
+        "mega cd",
+        "segacd"
+      ]
     },
     {
       "slug": "saturn",
-      "aliases": ["saturn", "sega saturn"],
-      "extensions": ["cue", "bin", "iso", "chd", "ccd", "mds"],
-      "folder_hints": ["saturn", "sega saturn"],
-      "dat_tokens": ["saturn"]
+      "aliases": [
+        "saturn",
+        "sega saturn"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd",
+        "ccd",
+        "mds"
+      ],
+      "folder_hints": [
+        "saturn",
+        "sega saturn"
+      ],
+      "dat_tokens": [
+        "saturn"
+      ]
     },
     {
       "slug": "dc",
-      "aliases": ["dreamcast", "dc"],
-      "extensions": ["gdi", "chd", "cdi", "cue", "bin"],
-      "folder_hints": ["dreamcast", "dc"],
-      "dat_tokens": ["dreamcast", "dc"]
+      "aliases": [
+        "dreamcast",
+        "dc"
+      ],
+      "extensions": [
+        "gdi",
+        "chd",
+        "cdi",
+        "cue",
+        "bin"
+      ],
+      "folder_hints": [
+        "dreamcast",
+        "dc"
+      ],
+      "dat_tokens": [
+        "dreamcast",
+        "dc"
+      ]
     },
     {
       "slug": "psx",
-      "aliases": ["playstation", "ps1", "psx"],
-      "extensions": ["cue", "bin", "chd", "iso", "pbp", "img"],
-      "folder_hints": ["psx", "ps1", "playstation"],
-      "dat_tokens": ["playstation", "psx", "ps1"]
+      "aliases": [
+        "playstation",
+        "ps1",
+        "psx"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "chd",
+        "iso",
+        "pbp",
+        "img"
+      ],
+      "folder_hints": [
+        "psx",
+        "ps1",
+        "playstation"
+      ],
+      "dat_tokens": [
+        "playstation",
+        "psx",
+        "ps1"
+      ]
     },
     {
       "slug": "ps2",
-      "aliases": ["playstation 2", "ps2"],
-      "extensions": ["iso", "chd", "cso"],
-      "folder_hints": ["ps2", "playstation 2"],
-      "dat_tokens": ["ps2", "playstation 2"]
+      "aliases": [
+        "playstation 2",
+        "ps2"
+      ],
+      "extensions": [
+        "iso",
+        "chd",
+        "cso"
+      ],
+      "folder_hints": [
+        "ps2",
+        "playstation 2"
+      ],
+      "dat_tokens": [
+        "ps2",
+        "playstation 2"
+      ]
     },
     {
       "slug": "ps3",
-      "aliases": ["playstation 3", "ps3"],
-      "extensions": ["iso", "pkg", "ps3"],
-      "folder_hints": ["ps3", "playstation 3"],
-      "dat_tokens": ["ps3", "playstation 3"]
+      "aliases": [
+        "playstation 3",
+        "ps3"
+      ],
+      "extensions": [
+        "iso",
+        "pkg",
+        "ps3"
+      ],
+      "folder_hints": [
+        "ps3",
+        "playstation 3"
+      ],
+      "dat_tokens": [
+        "ps3",
+        "playstation 3"
+      ]
     },
     {
       "slug": "psp",
-      "aliases": ["playstation portable", "psp"],
-      "extensions": ["iso", "cso", "pbp"],
-      "folder_hints": ["psp", "playstation portable"],
-      "dat_tokens": ["psp", "playstation portable"]
+      "aliases": [
+        "playstation portable",
+        "psp"
+      ],
+      "extensions": [
+        "iso",
+        "cso",
+        "pbp"
+      ],
+      "folder_hints": [
+        "psp",
+        "playstation portable"
+      ],
+      "dat_tokens": [
+        "psp",
+        "playstation portable"
+      ]
     },
     {
       "slug": "psvita",
-      "aliases": ["playstation vita", "psvita"],
-      "extensions": ["vpk", "zip"],
-      "folder_hints": ["psvita", "playstation vita"],
-      "dat_tokens": ["psvita"]
+      "aliases": [
+        "playstation vita",
+        "psvita"
+      ],
+      "extensions": [
+        "vpk",
+        "zip"
+      ],
+      "folder_hints": [
+        "psvita",
+        "playstation vita"
+      ],
+      "dat_tokens": [
+        "psvita"
+      ]
     },
     {
       "slug": "xbox",
-      "aliases": ["xbox"],
-      "extensions": ["iso", "xiso"],
-      "folder_hints": ["xbox"],
-      "dat_tokens": ["xbox"]
+      "aliases": [
+        "xbox"
+      ],
+      "extensions": [
+        "iso",
+        "xiso"
+      ],
+      "folder_hints": [
+        "xbox"
+      ],
+      "dat_tokens": [
+        "xbox"
+      ]
     },
     {
       "slug": "xbox360",
-      "aliases": ["xbox 360", "xbox360"],
-      "extensions": ["iso", "xex"],
-      "folder_hints": ["xbox360", "xbox 360"],
-      "dat_tokens": ["xbox360", "xbox 360"]
+      "aliases": [
+        "xbox 360",
+        "xbox360"
+      ],
+      "extensions": [
+        "iso",
+        "xex"
+      ],
+      "folder_hints": [
+        "xbox360",
+        "xbox 360"
+      ],
+      "dat_tokens": [
+        "xbox360",
+        "xbox 360"
+      ]
     },
     {
       "slug": "atari2600",
-      "aliases": ["atari 2600", "2600"],
-      "extensions": ["a26", "bin", "rom"],
-      "folder_hints": ["atari2600", "atari 2600"],
-      "dat_tokens": ["atari 2600", "a2600", "2600"]
+      "aliases": [
+        "atari 2600",
+        "2600"
+      ],
+      "extensions": [
+        "a26",
+        "bin",
+        "rom"
+      ],
+      "folder_hints": [
+        "atari2600",
+        "atari 2600"
+      ],
+      "dat_tokens": [
+        "atari 2600",
+        "a2600",
+        "2600"
+      ]
     },
     {
       "slug": "atari5200",
-      "aliases": ["atari 5200", "5200"],
-      "extensions": ["a52", "bin", "rom"],
-      "folder_hints": ["atari5200", "atari 5200"],
-      "dat_tokens": ["atari 5200", "a5200", "5200"]
+      "aliases": [
+        "atari 5200",
+        "5200"
+      ],
+      "extensions": [
+        "a52",
+        "bin",
+        "rom"
+      ],
+      "folder_hints": [
+        "atari5200",
+        "atari 5200"
+      ],
+      "dat_tokens": [
+        "atari 5200",
+        "a5200",
+        "5200"
+      ]
     },
     {
       "slug": "atari7800",
-      "aliases": ["atari 7800", "7800"],
-      "extensions": ["a78", "bin", "rom"],
-      "folder_hints": ["atari7800", "atari 7800"],
-      "dat_tokens": ["atari 7800", "a7800", "7800"]
+      "aliases": [
+        "atari 7800",
+        "7800"
+      ],
+      "extensions": [
+        "a78",
+        "bin",
+        "rom"
+      ],
+      "folder_hints": [
+        "atari7800",
+        "atari 7800"
+      ],
+      "dat_tokens": [
+        "atari 7800",
+        "a7800",
+        "7800"
+      ]
     },
     {
       "slug": "lynx",
-      "aliases": ["atari lynx", "lynx"],
-      "extensions": ["lnx", "lyx", "o"],
-      "folder_hints": ["lynx", "atari lynx"],
-      "dat_tokens": ["lynx"]
+      "aliases": [
+        "atari lynx",
+        "lynx"
+      ],
+      "extensions": [
+        "lnx",
+        "lyx",
+        "o"
+      ],
+      "folder_hints": [
+        "lynx",
+        "atari lynx"
+      ],
+      "dat_tokens": [
+        "lynx"
+      ]
     },
     {
       "slug": "jaguar",
-      "aliases": ["atari jaguar", "jaguar"],
-      "extensions": ["j64", "jag", "rom", "cof"],
-      "folder_hints": ["jaguar", "atari jaguar"],
-      "dat_tokens": ["jaguar"]
+      "aliases": [
+        "atari jaguar",
+        "jaguar"
+      ],
+      "extensions": [
+        "j64",
+        "jag",
+        "rom",
+        "cof"
+      ],
+      "folder_hints": [
+        "jaguar",
+        "atari jaguar"
+      ],
+      "dat_tokens": [
+        "jaguar"
+      ]
     },
     {
       "slug": "neogeoaes",
-      "aliases": ["neo geo", "neogeo", "aes"],
-      "extensions": ["zip", "7z", "neo"],
-      "folder_hints": ["neo geo", "neogeo", "aes"],
-      "dat_tokens": ["neo geo", "neogeo", "aes"]
+      "aliases": [
+        "neo geo",
+        "neogeo",
+        "aes"
+      ],
+      "extensions": [
+        "zip",
+        "7z",
+        "neo"
+      ],
+      "folder_hints": [
+        "neo geo",
+        "neogeo",
+        "aes"
+      ],
+      "dat_tokens": [
+        "neo geo",
+        "neogeo",
+        "aes"
+      ]
     },
     {
       "slug": "neogeomvs",
-      "aliases": ["neo geo mvs", "mvs"],
-      "extensions": ["zip", "7z"],
-      "folder_hints": ["mvs", "neo geo mvs"],
-      "dat_tokens": ["neo geo mvs", "mvs"]
+      "aliases": [
+        "neo geo mvs",
+        "mvs"
+      ],
+      "extensions": [
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "mvs",
+        "neo geo mvs"
+      ],
+      "dat_tokens": [
+        "neo geo mvs",
+        "mvs"
+      ]
     },
     {
       "slug": "arcade",
-      "aliases": ["arcade", "mame", "fbneo"],
-      "extensions": ["zip", "7z", "chd"],
-      "folder_hints": ["arcade", "mame", "fbneo"],
-      "dat_tokens": ["mame", "fbneo", "arcade"]
+      "aliases": [
+        "arcade",
+        "mame",
+        "fbneo"
+      ],
+      "extensions": [
+        "zip",
+        "7z",
+        "chd"
+      ],
+      "folder_hints": [
+        "arcade",
+        "mame",
+        "fbneo"
+      ],
+      "dat_tokens": [
+        "mame",
+        "fbneo",
+        "arcade"
+      ]
     },
     {
       "slug": "c64",
-      "aliases": ["commodore 64", "c64"],
-      "extensions": ["d64", "t64", "prg", "crt"],
-      "folder_hints": ["c64", "commodore"],
-      "dat_tokens": ["commodore 64", "c64"]
+      "aliases": [
+        "commodore 64",
+        "c64"
+      ],
+      "extensions": [
+        "d64",
+        "t64",
+        "prg",
+        "crt"
+      ],
+      "folder_hints": [
+        "c64",
+        "commodore"
+      ],
+      "dat_tokens": [
+        "commodore 64",
+        "c64"
+      ]
     },
     {
       "slug": "amiga",
-      "aliases": ["amiga"],
-      "extensions": ["adf", "adz", "dms", "hdf", "lha", "lzx"],
-      "folder_hints": ["amiga"],
-      "dat_tokens": ["amiga"]
+      "aliases": [
+        "amiga"
+      ],
+      "extensions": [
+        "adf",
+        "adz",
+        "dms",
+        "hdf",
+        "lha",
+        "lzx"
+      ],
+      "folder_hints": [
+        "amiga"
+      ],
+      "dat_tokens": [
+        "amiga"
+      ]
     },
     {
       "slug": "amiga-cd32",
-      "aliases": ["amiga cd32", "cd32"],
-      "extensions": ["cue", "bin", "iso", "chd"],
-      "folder_hints": ["cd32", "amiga cd32"],
-      "dat_tokens": ["cd32", "amiga cd32"]
+      "aliases": [
+        "amiga cd32",
+        "cd32"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd"
+      ],
+      "folder_hints": [
+        "cd32",
+        "amiga cd32"
+      ],
+      "dat_tokens": [
+        "cd32",
+        "amiga cd32"
+      ]
     },
     {
       "slug": "dos",
-      "aliases": ["dos", "ms-dos"],
-      "extensions": ["zip", "7z", "exe", "bat"],
-      "folder_hints": ["dos", "ms-dos"],
-      "dat_tokens": ["dos", "ms-dos"]
+      "aliases": [
+        "dos",
+        "ms-dos"
+      ],
+      "extensions": [
+        "zip",
+        "7z",
+        "exe",
+        "bat"
+      ],
+      "folder_hints": [
+        "dos",
+        "ms-dos"
+      ],
+      "dat_tokens": [
+        "dos",
+        "ms-dos"
+      ]
     },
     {
       "slug": "msx",
-      "aliases": ["msx"],
-      "extensions": ["rom", "dsk", "cas"],
-      "folder_hints": ["msx"],
-      "dat_tokens": ["msx"]
+      "aliases": [
+        "msx"
+      ],
+      "extensions": [
+        "rom",
+        "dsk",
+        "cas"
+      ],
+      "folder_hints": [
+        "msx"
+      ],
+      "dat_tokens": [
+        "msx"
+      ]
     },
     {
       "slug": "msx2",
-      "aliases": ["msx2"],
-      "extensions": ["rom", "dsk", "cas"],
-      "folder_hints": ["msx2"],
-      "dat_tokens": ["msx2"]
+      "aliases": [
+        "msx2"
+      ],
+      "extensions": [
+        "rom",
+        "dsk",
+        "cas"
+      ],
+      "folder_hints": [
+        "msx2"
+      ],
+      "dat_tokens": [
+        "msx2"
+      ]
     },
     {
       "slug": "tg16",
-      "aliases": ["turbografx", "pc engine", "tg16"],
-      "extensions": ["pce", "cue", "bin", "chd"],
-      "folder_hints": ["tg16", "turbografx", "pc engine"],
-      "dat_tokens": ["tg16", "turbografx", "pc engine"]
+      "aliases": [
+        "turbografx",
+        "pc engine",
+        "tg16"
+      ],
+      "extensions": [
+        "pce",
+        "cue",
+        "bin",
+        "chd"
+      ],
+      "folder_hints": [
+        "tg16",
+        "turbografx",
+        "pc engine"
+      ],
+      "dat_tokens": [
+        "tg16",
+        "turbografx",
+        "pc engine"
+      ]
     },
     {
       "slug": "turbografx-cd",
-      "aliases": ["pc engine cd", "turbografx cd"],
-      "extensions": ["cue", "bin", "iso", "chd"],
-      "folder_hints": ["pc engine cd", "turbografx cd"],
-      "dat_tokens": ["pc engine cd", "turbografx cd"]
+      "aliases": [
+        "pc engine cd",
+        "turbografx cd"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd"
+      ],
+      "folder_hints": [
+        "pc engine cd",
+        "turbografx cd"
+      ],
+      "dat_tokens": [
+        "pc engine cd",
+        "turbografx cd"
+      ]
     },
     {
       "slug": "pc-fx",
-      "aliases": ["pc-fx", "pc fx"],
-      "extensions": ["cue", "bin", "iso", "chd"],
-      "folder_hints": ["pcfx", "pc-fx", "pc fx"],
-      "dat_tokens": ["pc-fx", "pc fx"]
+      "aliases": [
+        "pc-fx",
+        "pc fx"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd"
+      ],
+      "folder_hints": [
+        "pcfx",
+        "pc-fx",
+        "pc fx"
+      ],
+      "dat_tokens": [
+        "pc-fx",
+        "pc fx"
+      ]
     },
     {
       "slug": "scummvm",
-      "aliases": ["scummvm"],
-      "extensions": ["zip", "7z", "scummvm"],
-      "folder_hints": ["scummvm"],
-      "dat_tokens": ["scummvm"]
+      "aliases": [
+        "scummvm"
+      ],
+      "extensions": [
+        "zip",
+        "7z",
+        "scummvm"
+      ],
+      "folder_hints": [
+        "scummvm"
+      ],
+      "dat_tokens": [
+        "scummvm"
+      ]
     },
     {
       "slug": "zxs",
-      "aliases": ["zx spectrum", "zxs", "spectrum"],
-      "extensions": ["tzx", "tap", "z80", "sna"],
-      "folder_hints": ["zxs", "spectrum", "zx spectrum"],
-      "dat_tokens": ["zx spectrum", "zxs"]
+      "aliases": [
+        "zx spectrum",
+        "zxs",
+        "spectrum"
+      ],
+      "extensions": [
+        "tzx",
+        "tap",
+        "z80",
+        "sna"
+      ],
+      "folder_hints": [
+        "zxs",
+        "spectrum",
+        "zx spectrum"
+      ],
+      "dat_tokens": [
+        "zx spectrum",
+        "zxs"
+      ]
+    },
+    {
+      "slug": "famicom",
+      "aliases": [
+        "family computer",
+        "famicom"
+      ],
+      "extensions": [
+        "nes",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "famicom",
+        "family computer"
+      ],
+      "dat_tokens": [
+        "famicom"
+      ]
+    },
+    {
+      "slug": "fds",
+      "aliases": [
+        "family computer disk system",
+        "fds"
+      ],
+      "extensions": [
+        "fds",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "fds",
+        "family computer disk system"
+      ],
+      "dat_tokens": [
+        "fds"
+      ]
+    },
+    {
+      "slug": "sfam",
+      "aliases": [
+        "super famicom",
+        "sfam"
+      ],
+      "extensions": [
+        "sfc",
+        "smc",
+        "fig",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "sfam",
+        "super famicom"
+      ],
+      "dat_tokens": [
+        "sfam"
+      ]
+    },
+    {
+      "slug": "virtualboy",
+      "aliases": [
+        "virtual boy",
+        "virtualboy"
+      ],
+      "extensions": [
+        "vb",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "virtualboy",
+        "virtual boy"
+      ],
+      "dat_tokens": [
+        "virtualboy"
+      ]
+    },
+    {
+      "slug": "pokemon-mini",
+      "aliases": [
+        "pokemon mini",
+        "pokemon-mini"
+      ],
+      "extensions": [
+        "min",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "pokemon-mini",
+        "pokemon mini"
+      ],
+      "dat_tokens": [
+        "pokemon-mini"
+      ]
+    },
+    {
+      "slug": "switch",
+      "aliases": [
+        "nintendo switch",
+        "switch"
+      ],
+      "extensions": [
+        "nsp",
+        "xci",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "switch",
+        "nintendo switch"
+      ],
+      "dat_tokens": [
+        "switch"
+      ]
+    },
+    {
+      "slug": "gamegear",
+      "aliases": [
+        "sega game gear",
+        "gamegear"
+      ],
+      "extensions": [
+        "gg",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "gamegear",
+        "sega game gear"
+      ],
+      "dat_tokens": [
+        "gamegear"
+      ]
+    },
+    {
+      "slug": "sg1000",
+      "aliases": [
+        "sg-1000",
+        "sg1000"
+      ],
+      "extensions": [
+        "sg",
+        "bin",
+        "rom",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "sg1000",
+        "sg-1000"
+      ],
+      "dat_tokens": [
+        "sg1000"
+      ]
+    },
+    {
+      "slug": "sega-pico",
+      "aliases": [
+        "sega pico",
+        "sega-pico"
+      ],
+      "extensions": [
+        "bin",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "sega-pico",
+        "sega pico"
+      ],
+      "dat_tokens": [
+        "sega-pico"
+      ]
+    },
+    {
+      "slug": "atari8bit",
+      "aliases": [
+        "atari 8-bit",
+        "atari8bit"
+      ],
+      "extensions": [
+        "atr",
+        "atx",
+        "xfd",
+        "xex",
+        "cas",
+        "car",
+        "rom",
+        "bin",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "atari8bit",
+        "atari 8-bit"
+      ],
+      "dat_tokens": [
+        "atari8bit"
+      ]
+    },
+    {
+      "slug": "atari800",
+      "aliases": [
+        "atari 800",
+        "atari800"
+      ],
+      "extensions": [
+        "atr",
+        "atx",
+        "xfd",
+        "xex",
+        "cas",
+        "car",
+        "rom",
+        "bin",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "atari800",
+        "atari 800"
+      ],
+      "dat_tokens": [
+        "atari800"
+      ]
+    },
+    {
+      "slug": "atari-jaguar-cd",
+      "aliases": [
+        "atari jaguar cd",
+        "atari-jaguar-cd"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd",
+        "jcd",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "atari-jaguar-cd",
+        "atari jaguar cd"
+      ],
+      "dat_tokens": [
+        "atari-jaguar-cd"
+      ]
+    },
+    {
+      "slug": "atari-st",
+      "aliases": [
+        "atari st/ste",
+        "atari-st"
+      ],
+      "extensions": [
+        "st",
+        "msa",
+        "stx",
+        "ipf",
+        "dim",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "atari-st",
+        "atari st/ste"
+      ],
+      "dat_tokens": [
+        "atari-st"
+      ]
+    },
+    {
+      "slug": "neo-geo-cd",
+      "aliases": [
+        "neo geo cd",
+        "neo-geo-cd"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "neo-geo-cd",
+        "neo geo cd"
+      ],
+      "dat_tokens": [
+        "neo-geo-cd"
+      ]
+    },
+    {
+      "slug": "neo-geo-pocket",
+      "aliases": [
+        "neo geo pocket",
+        "neo-geo-pocket"
+      ],
+      "extensions": [
+        "ngp",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "neo-geo-pocket",
+        "neo geo pocket"
+      ],
+      "dat_tokens": [
+        "neo-geo-pocket"
+      ]
+    },
+    {
+      "slug": "neo-geo-pocket-color",
+      "aliases": [
+        "neo geo pocket color",
+        "neo-geo-pocket-color"
+      ],
+      "extensions": [
+        "ngc",
+        "ngpc",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "neo-geo-pocket-color",
+        "neo geo pocket color"
+      ],
+      "dat_tokens": [
+        "neo-geo-pocket-color"
+      ]
+    },
+    {
+      "slug": "cps1",
+      "aliases": [
+        "capcom play system",
+        "cps1"
+      ],
+      "extensions": [
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "cps1",
+        "capcom play system"
+      ],
+      "dat_tokens": [
+        "cps1"
+      ]
+    },
+    {
+      "slug": "cps2",
+      "aliases": [
+        "capcom play system 2",
+        "cps2"
+      ],
+      "extensions": [
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "cps2",
+        "capcom play system 2"
+      ],
+      "dat_tokens": [
+        "cps2"
+      ]
+    },
+    {
+      "slug": "cps3",
+      "aliases": [
+        "capcom play system 3",
+        "cps3"
+      ],
+      "extensions": [
+        "chd",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "cps3",
+        "capcom play system 3"
+      ],
+      "dat_tokens": [
+        "cps3"
+      ]
+    },
+    {
+      "slug": "c128",
+      "aliases": [
+        "commodore 128",
+        "c128"
+      ],
+      "extensions": [
+        "d64",
+        "d71",
+        "d81",
+        "prg",
+        "crt",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "c128",
+        "commodore 128"
+      ],
+      "dat_tokens": [
+        "c128"
+      ]
+    },
+    {
+      "slug": "c16",
+      "aliases": [
+        "commodore 16",
+        "c16"
+      ],
+      "extensions": [
+        "prg",
+        "tap",
+        "d64",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "c16",
+        "commodore 16"
+      ],
+      "dat_tokens": [
+        "c16"
+      ]
+    },
+    {
+      "slug": "c-plus-4",
+      "aliases": [
+        "commodore plus/4",
+        "c-plus-4"
+      ],
+      "extensions": [
+        "prg",
+        "tap",
+        "d64",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "c-plus-4",
+        "commodore plus/4"
+      ],
+      "dat_tokens": [
+        "c-plus-4"
+      ]
+    },
+    {
+      "slug": "vic-20",
+      "aliases": [
+        "commodore vic-20",
+        "vic-20"
+      ],
+      "extensions": [
+        "prg",
+        "tap",
+        "crt",
+        "d64",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "vic-20",
+        "commodore vic-20"
+      ],
+      "dat_tokens": [
+        "vic-20"
+      ]
+    },
+    {
+      "slug": "amiga-cd",
+      "aliases": [
+        "amiga cd",
+        "amiga-cd"
+      ],
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "amiga-cd",
+        "amiga cd"
+      ],
+      "dat_tokens": [
+        "amiga-cd"
+      ]
+    },
+    {
+      "slug": "appleii",
+      "aliases": [
+        "apple ii",
+        "appleii"
+      ],
+      "extensions": [
+        "dsk",
+        "do",
+        "po",
+        "nib",
+        "2mg",
+        "woz",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "appleii",
+        "apple ii"
+      ],
+      "dat_tokens": [
+        "appleii"
+      ]
+    },
+    {
+      "slug": "apple-iigs",
+      "aliases": [
+        "apple iigs",
+        "apple-iigs"
+      ],
+      "extensions": [
+        "2mg",
+        "po",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "apple-iigs",
+        "apple iigs"
+      ],
+      "dat_tokens": [
+        "apple-iigs"
+      ]
+    },
+    {
+      "slug": "msx2plus",
+      "aliases": [
+        "msx2+",
+        "msx2plus"
+      ],
+      "extensions": [
+        "rom",
+        "dsk",
+        "cas",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "msx2plus",
+        "msx2+"
+      ],
+      "dat_tokens": [
+        "msx2plus"
+      ]
+    },
+    {
+      "slug": "supergrafx",
+      "aliases": [
+        "pc engine supergrafx",
+        "supergrafx"
+      ],
+      "extensions": [
+        "sgx",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "supergrafx",
+        "pc engine supergrafx"
+      ],
+      "dat_tokens": [
+        "supergrafx"
+      ]
+    },
+    {
+      "slug": "acpc",
+      "aliases": [
+        "amstrad cpc",
+        "acpc"
+      ],
+      "extensions": [
+        "dsk",
+        "cdt",
+        "sna",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "acpc",
+        "amstrad cpc"
+      ],
+      "dat_tokens": [
+        "acpc"
+      ]
+    },
+    {
+      "slug": "amstrad-gx4000",
+      "aliases": [
+        "amstrad gx4000",
+        "amstrad-gx4000"
+      ],
+      "extensions": [
+        "cpr",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "amstrad-gx4000",
+        "amstrad gx4000"
+      ],
+      "dat_tokens": [
+        "amstrad-gx4000"
+      ]
+    },
+    {
+      "slug": "bbcmicro",
+      "aliases": [
+        "bbc microcomputer system",
+        "bbcmicro"
+      ],
+      "extensions": [
+        "ssd",
+        "dsd",
+        "uef",
+        "csw",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "bbcmicro",
+        "bbc microcomputer system"
+      ],
+      "dat_tokens": [
+        "bbcmicro"
+      ]
+    },
+    {
+      "slug": "colecovision",
+      "aliases": [
+        "colecovision"
+      ],
+      "extensions": [
+        "col",
+        "cv",
+        "bin",
+        "rom",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "colecovision"
+      ],
+      "dat_tokens": [
+        "colecovision"
+      ]
+    },
+    {
+      "slug": "fairchild-channel-f",
+      "aliases": [
+        "fairchild channel f",
+        "fairchild-channel-f"
+      ],
+      "extensions": [
+        "bin",
+        "rom",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "fairchild-channel-f",
+        "fairchild channel f"
+      ],
+      "dat_tokens": [
+        "fairchild-channel-f"
+      ]
+    },
+    {
+      "slug": "intellivision",
+      "aliases": [
+        "intellivision"
+      ],
+      "extensions": [
+        "int",
+        "bin",
+        "rom",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "intellivision"
+      ],
+      "dat_tokens": [
+        "intellivision"
+      ]
+    },
+    {
+      "slug": "odyssey-2",
+      "aliases": [
+        "odyssey 2 / videopac g7000",
+        "odyssey-2"
+      ],
+      "extensions": [
+        "bin",
+        "rom",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "odyssey-2",
+        "odyssey 2 / videopac g7000"
+      ],
+      "dat_tokens": [
+        "odyssey-2"
+      ]
+    },
+    {
+      "slug": "ti-994a",
+      "aliases": [
+        "ti-99/4a",
+        "ti-994a"
+      ],
+      "extensions": [
+        "bin",
+        "rpk",
+        "rom",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "ti-994a",
+        "ti-99/4a"
+      ],
+      "dat_tokens": [
+        "ti-994a"
+      ]
+    },
+    {
+      "slug": "tomy-tutor",
+      "aliases": [
+        "tomy tutor",
+        "tomy-tutor"
+      ],
+      "extensions": [
+        "bin",
+        "rom",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "tomy-tutor",
+        "tomy tutor"
+      ],
+      "dat_tokens": [
+        "tomy-tutor"
+      ]
+    },
+    {
+      "slug": "trs-80",
+      "aliases": [
+        "trs-80"
+      ],
+      "extensions": [
+        "cas",
+        "cmd",
+        "dsk",
+        "dmk",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "trs-80"
+      ],
+      "dat_tokens": [
+        "trs-80"
+      ]
+    },
+    {
+      "slug": "trs-80-color-computer",
+      "aliases": [
+        "trs-80 color computer",
+        "trs-80-color-computer"
+      ],
+      "extensions": [
+        "cas",
+        "ccc",
+        "dsk",
+        "rom",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "trs-80-color-computer",
+        "trs-80 color computer"
+      ],
+      "dat_tokens": [
+        "trs-80-color-computer"
+      ]
+    },
+    {
+      "slug": "vectrex",
+      "aliases": [
+        "vectrex"
+      ],
+      "extensions": [
+        "vec",
+        "bin",
+        "gam",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "vectrex"
+      ],
+      "dat_tokens": [
+        "vectrex"
+      ]
+    },
+    {
+      "slug": "wonderswan",
+      "aliases": [
+        "wonderswan"
+      ],
+      "extensions": [
+        "ws",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "wonderswan"
+      ],
+      "dat_tokens": [
+        "wonderswan"
+      ]
+    },
+    {
+      "slug": "wonderswan-color",
+      "aliases": [
+        "wonderswan color",
+        "wonderswan-color"
+      ],
+      "extensions": [
+        "wsc",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "wonderswan-color",
+        "wonderswan color"
+      ],
+      "dat_tokens": [
+        "wonderswan-color"
+      ]
+    },
+    {
+      "slug": "zx81",
+      "aliases": [
+        "sinclair zx81",
+        "zx81"
+      ],
+      "extensions": [
+        "p",
+        "tzx",
+        "tap",
+        "zip",
+        "7z"
+      ],
+      "folder_hints": [
+        "zx81",
+        "sinclair zx81"
+      ],
+      "dat_tokens": [
+        "zx81"
+      ]
     }
   ]
 }
