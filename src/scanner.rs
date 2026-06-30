@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use anyhow::{Context, Result};
@@ -13,7 +14,11 @@ pub struct ScanProgress {
     pub current_path: PathBuf,
 }
 
-pub fn count_scan_candidates(source_root: &Path, output_root: &Path) -> Result<usize> {
+pub fn count_scan_candidates(
+    source_root: &Path,
+    output_root: &Path,
+    cancelled: &AtomicBool,
+) -> Result<usize> {
     let mut total = 0usize;
 
     let walker = WalkDir::new(source_root)
@@ -22,6 +27,10 @@ pub fn count_scan_candidates(source_root: &Path, output_root: &Path) -> Result<u
         .filter_entry(|entry| should_descend(entry, output_root));
 
     for entry_result in walker {
+        if cancelled.load(Ordering::Relaxed) {
+            anyhow::bail!("Operation canceled");
+        }
+
         let entry = entry_result.context("Failed while traversing source directory")?;
         let path = entry.path();
 
@@ -42,6 +51,7 @@ pub fn scan_files_with_total<F>(
     output_root: &Path,
     allowed_extensions: &HashSet<String>,
     total: usize,
+    cancelled: &AtomicBool,
     mut on_progress: F,
 ) -> Result<(Vec<PathBuf>, usize)>
 where
@@ -57,6 +67,10 @@ where
         .filter_entry(|entry| should_descend(entry, output_root));
 
     for entry_result in walker {
+        if cancelled.load(Ordering::Relaxed) {
+            anyhow::bail!("Operation canceled");
+        }
+
         let entry = entry_result.context("Failed while traversing source directory")?;
         let path = entry.path();
 

@@ -2,7 +2,11 @@ use std::{
     collections::HashSet,
     fs,
     path::{Path, PathBuf},
-    sync::mpsc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+        Arc,
+    },
     thread,
 };
 
@@ -34,18 +38,25 @@ pub fn run(source_root: PathBuf, transfer_mode: TransferMode) -> Result<()> {
     let classifier = Classifier::from_embedded()?;
     let worker_source = source_root.clone();
     let worker_output = output_root.clone();
+    let scan_cancelled = Arc::new(AtomicBool::new(false));
 
     let (progress_tx, progress_rx) = mpsc::channel();
+    let scan_cancelled_worker = Arc::clone(&scan_cancelled);
     let worker = thread::spawn(move || -> Result<PreparedData> {
         const PHASE_TOTAL: usize = 2;
         let allowed_extensions = classifier.allowed_extensions();
 
-        let scan_total = scanner::count_scan_candidates(&worker_source, &worker_output)?;
+        let scan_total = scanner::count_scan_candidates(
+            &worker_source,
+            &worker_output,
+            &scan_cancelled_worker,
+        )?;
         let (files, skipped) = scanner::scan_files_with_total(
             &worker_source,
             &worker_output,
             &allowed_extensions,
             scan_total,
+            &scan_cancelled_worker,
             |progress| {
                 let _ = progress_tx.send(tui::LoadingUpdate {
                     phase: String::from("Scanning folders"),
@@ -102,11 +113,19 @@ pub fn run(source_root: PathBuf, transfer_mode: TransferMode) -> Result<()> {
         Ok(PreparedData { plan, summary })
     });
 
-    tui::run_loading_modal(progress_rx)?;
+    tui::run_loading_modal(progress_rx, Arc::clone(&scan_cancelled))?;
 
-    let prepared = worker
-        .join()
-        .map_err(|_| anyhow::anyhow!("Scan worker thread panicked"))??;
+    let prepared = match worker.join() {
+        Ok(result) => match result {
+            Ok(prepared) => prepared,
+            Err(error) if error.to_string() == "Operation canceled" => {
+                println!("Scan canceled. No files were transferred.");
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        },
+        Err(_) => return Err(anyhow::anyhow!("Scan worker thread panicked")),
+    };
 
     let selection = tui::run(tui::AppView {
         source_root,
@@ -121,11 +140,35 @@ pub fn run(source_root: PathBuf, transfer_mode: TransferMode) -> Result<()> {
         return Ok(());
     }
 
-    let stats = execute_transfers(
-        &selection.plan,
-        &selection.disabled_plan_indices,
-        transfer_mode,
-    )?;
+    let transfer_cancelled = Arc::new(AtomicBool::new(false));
+    let (transfer_tx, transfer_rx) = mpsc::channel();
+    let transfer_mode_label = transfer_mode.prompt_label();
+    let transfer_cancelled_worker = Arc::clone(&transfer_cancelled);
+    let transfer_plan = selection.plan;
+    let transfer_disabled = selection.disabled_plan_indices;
+    let transfer_worker = thread::spawn(move || {
+        execute_transfers(
+            &transfer_plan,
+            &transfer_disabled,
+            transfer_mode,
+            transfer_tx,
+            transfer_cancelled_worker,
+        )
+    });
+
+    tui::run_transfer_modal(transfer_rx, Arc::clone(&transfer_cancelled), transfer_mode_label)?;
+
+    let stats = match transfer_worker.join() {
+        Ok(result) => match result {
+            Ok(stats) => stats,
+            Err(error) if error.to_string() == "Operation canceled" => {
+                println!("{} canceled during transfer.", transfer_mode.prompt_label());
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        },
+        Err(_) => return Err(anyhow::anyhow!("Transfer worker thread panicked")),
+    };
 
     println!(
         "{} complete: {} transferred | {} skipped (unclassified/conflict/disabled)",
@@ -146,23 +189,60 @@ fn execute_transfers(
     plan: &[PlannedMove],
     disabled_plan_indices: &HashSet<usize>,
     transfer_mode: TransferMode,
+    progress_tx: mpsc::Sender<tui::TransferUpdate>,
+    cancelled: Arc<AtomicBool>,
 ) -> Result<TransferStats> {
     let mut transferred = 0usize;
     let mut skipped = 0usize;
 
     for (index, item) in plan.iter().enumerate() {
+        if cancelled.load(Ordering::Relaxed) {
+            return Err(anyhow::anyhow!("Operation canceled"));
+        }
+
         if disabled_plan_indices.contains(&index) {
             skipped += 1;
+            let _ = progress_tx.send(tui::TransferUpdate {
+                phase: format!("{}", transfer_mode.prompt_label()),
+                source: item.source.display().to_string(),
+                destination: item
+                    .destination
+                    .as_ref()
+                    .map(|dst| dst.display().to_string())
+                    .unwrap_or_default(),
+                processed: index + 1,
+                total: plan.len(),
+                transferred,
+                skipped,
+            });
             continue;
         }
 
         let Some(destination) = &item.destination else {
             skipped += 1;
+            let _ = progress_tx.send(tui::TransferUpdate {
+                phase: format!("{}", transfer_mode.prompt_label()),
+                source: item.source.display().to_string(),
+                destination: String::new(),
+                processed: index + 1,
+                total: plan.len(),
+                transferred,
+                skipped,
+            });
             continue;
         };
 
         if item.has_conflict {
             skipped += 1;
+            let _ = progress_tx.send(tui::TransferUpdate {
+                phase: format!("{}", transfer_mode.prompt_label()),
+                source: item.source.display().to_string(),
+                destination: destination.display().to_string(),
+                processed: index + 1,
+                total: plan.len(),
+                transferred,
+                skipped,
+            });
             continue;
         }
 
@@ -186,6 +266,16 @@ fn execute_transfers(
                 move_file(&item.source, destination)?;
             }
         }
+
+        let _ = progress_tx.send(tui::TransferUpdate {
+            phase: format!("{}", transfer_mode.prompt_label()),
+            source: item.source.display().to_string(),
+            destination: destination.display().to_string(),
+            processed: index + 1,
+            total: plan.len(),
+            transferred: transferred + 1,
+            skipped,
+        });
 
         transferred += 1;
     }
@@ -220,52 +310,13 @@ fn plan_destination_for_game(
     let file_name = source_file.file_name()?;
     let rel = source_file.strip_prefix(source_root).ok()?;
 
-    let game_folder = infer_game_folder_name(rel, source_file, slug)?;
-    let mut destination = output_root.join(slug).join(game_folder);
+    let mut destination = output_root.join(slug);
 
     if let Some(category) = detect_romm_category(rel) {
         destination = destination.join(category);
     }
 
     Some(destination.join(file_name))
-}
-
-fn infer_game_folder_name(relative_path: &Path, source_file: &Path, slug: &str) -> Option<String> {
-    let mut components: Vec<String> = relative_path
-        .iter()
-        .filter_map(|c| c.to_str())
-        .map(|s| s.to_string())
-        .collect();
-
-    if components.is_empty() {
-        return None;
-    }
-
-    // remove filename component
-    components.pop();
-
-    // Prefer the closest meaningful parent folder as game name when present.
-    let parent_candidate = components
-        .iter()
-        .rev()
-        .find(|component| {
-            !is_non_game_container(component)
-                && !is_platform_marker(component, slug)
-                && !is_library_bucket(component)
-        })
-        .cloned();
-
-    let raw = if let Some(parent) = parent_candidate {
-        parent
-    } else {
-        source_file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .map(normalize_game_name)
-            .unwrap_or_else(|| String::from("unknown-game"))
-    };
-
-    Some(sanitize_folder_name(&raw))
 }
 
 fn detect_romm_category(relative_path: &Path) -> Option<String> {
@@ -288,127 +339,6 @@ fn detect_romm_category(relative_path: &Path) -> Option<String> {
     }
 
     None
-}
-
-fn is_non_game_container(component: &str) -> bool {
-    let lower = component.to_ascii_lowercase();
-
-    matches!(
-        lower.as_str(),
-        "rom"
-            | "roms"
-            | "bios"
-            | "cdi"
-            | "gdi"
-            | "iso"
-            | "bin"
-            | "cue"
-            | "chd"
-            | "img"
-            | "dvd"
-            | "cd"
-            | "disc"
-            | "track"
-            | "dlc"
-            | "hack"
-            | "manual"
-            | "mod"
-            | "patch"
-            | "update"
-            | "demo"
-            | "translation"
-            | "prototype"
-    )
-}
-
-fn is_platform_marker(component: &str, slug: &str) -> bool {
-    let component_norm = normalize_for_compare(component);
-    let slug_norm = normalize_for_compare(slug);
-
-    if component_norm.is_empty() || slug_norm.is_empty() {
-        return false;
-    }
-
-    component_norm == slug_norm
-        || component_norm.contains(&slug_norm)
-        || slug_norm.contains(&component_norm)
-}
-
-fn is_library_bucket(component: &str) -> bool {
-    let lower = component.trim().to_ascii_lowercase();
-
-    matches!(lower.as_str(), "0day" | "0-day" | "1g1r" | "collection") || is_range_bucket(&lower)
-}
-
-fn is_range_bucket(component: &str) -> bool {
-    let compact: String = component
-        .chars()
-        .filter(|ch| !ch.is_ascii_whitespace())
-        .collect();
-
-    if compact.len() == 1 {
-        return compact.chars().all(|ch| ch.is_ascii_alphanumeric());
-    }
-
-    if compact.len() == 3 {
-        let mut chars = compact.chars();
-        let first = chars.next().unwrap_or_default();
-        let middle = chars.next().unwrap_or_default();
-        let last = chars.next().unwrap_or_default();
-
-        return first.is_ascii_alphanumeric()
-            && last.is_ascii_alphanumeric()
-            && matches!(middle, '-' | '_' | '.');
-    }
-
-    compact == "0-9"
-}
-
-fn normalize_for_compare(input: &str) -> String {
-    input
-        .chars()
-        .filter(|ch| ch.is_ascii_alphanumeric())
-        .map(|ch| ch.to_ascii_lowercase())
-        .collect()
-}
-
-fn normalize_game_name(input: &str) -> String {
-    let mut name = input.replace('_', " ").replace('.', " ");
-
-    // Strip common multi-disc/track suffix tokens from inferred game-folder names.
-    let tokens_to_strip = [
-        " track ",
-        " disc ",
-        " disk ",
-        " cd ",
-        " dvd ",
-        " side ",
-    ];
-
-    for token in tokens_to_strip {
-        if let Some(index) = name.to_ascii_lowercase().find(token) {
-            name = name[..index].to_string();
-        }
-    }
-
-    name.trim().to_string()
-}
-
-fn sanitize_folder_name(input: &str) -> String {
-    let mut clean = String::new();
-    for ch in input.chars() {
-        if matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') {
-            continue;
-        }
-        clean.push(ch);
-    }
-
-    let trimmed = clean.trim().trim_end_matches('.').trim_end_matches(' ');
-    if trimmed.is_empty() {
-        String::from("unknown-game")
-    } else {
-        trimmed.to_string()
-    }
 }
 
 fn mark_conflicts(plan: &mut [PlannedMove]) {
@@ -451,42 +381,45 @@ fn summarize(plan: &[PlannedMove], skipped: usize) -> Summary {
 mod tests {
     use std::path::Path;
 
-    use super::{detect_romm_category, infer_game_folder_name};
-
-    #[test]
-    fn falls_back_to_file_stem_for_platform_container_paths() {
-        let relative = Path::new(r"0day\Atari 2600\roms\2Pak.bin");
-        let source = Path::new(r"0day\Atari 2600\roms\2Pak.bin");
-
-        let game = infer_game_folder_name(relative, source, "atari2600");
-
-        assert_eq!(game.as_deref(), Some("2Pak"));
-    }
-
-    #[test]
-    fn falls_back_to_archive_stem_for_bucketed_library_paths() {
-        let relative = Path::new(r"GBA ENGLISH\GBA\A-D\Disney.7z");
-        let source = Path::new(r"GBA ENGLISH\GBA\A-D\Disney.7z");
-
-        let game = infer_game_folder_name(relative, source, "gba");
-
-        assert_eq!(game.as_deref(), Some("Disney"));
-    }
-
-    #[test]
-    fn keeps_meaningful_parent_folder_as_game_name() {
-        let relative = Path::new(r"240pTestSuite\240pTS.smc");
-        let source = Path::new(r"240pTestSuite\240pTS.smc");
-
-        let game = infer_game_folder_name(relative, source, "snes");
-
-        assert_eq!(game.as_deref(), Some("240pTestSuite"));
-    }
+    use super::{detect_romm_category, plan_destination_for_game};
 
     #[test]
     fn detects_documented_multifile_categories() {
         let relative = Path::new(r"Some Game\patch\fix.zip");
 
         assert_eq!(detect_romm_category(relative).as_deref(), Some("patch"));
+    }
+
+    #[test]
+    fn places_single_file_roms_directly_in_stub_folder() {
+        let source_root = Path::new(r"\\Vesuvius\emulation\ROMS\Dreamcast");
+        let output_root = Path::new(r"\\Vesuvius\emulation\ROMS\Dreamcast\roms");
+        let source = Path::new(r"\\Vesuvius\emulation\ROMS\Dreamcast\Sonic Adventure.bin");
+
+        let destination = super::plan_destination_for_game(
+            source_root,
+            output_root,
+            source,
+            "dreamcast",
+        );
+
+        assert_eq!(
+            destination.as_deref(),
+            Some(Path::new(r"\\Vesuvius\emulation\ROMS\Dreamcast\roms\dreamcast\Sonic Adventure.bin"))
+        );
+    }
+
+    #[test]
+    fn keeps_category_subfolders_for_multi_file_romm_types() {
+        let source_root = Path::new(r"\\Vesuvius\emulation\ROMS\Dreamcast");
+        let output_root = Path::new(r"\\Vesuvius\emulation\ROMS\Dreamcast\roms");
+        let source = Path::new(r"\\Vesuvius\emulation\ROMS\Dreamcast\Some Game\patch\fix.zip");
+
+        let destination = plan_destination_for_game(source_root, output_root, source, "dreamcast");
+
+        assert_eq!(
+            destination.as_deref(),
+            Some(Path::new(r"\\Vesuvius\emulation\ROMS\Dreamcast\roms\dreamcast\patch\fix.zip"))
+        );
     }
 }

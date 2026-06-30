@@ -2,7 +2,11 @@ use std::{
     collections::{BTreeMap, HashSet},
     io,
     path::Path,
-    sync::mpsc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+        Arc,
+    },
     time::Duration,
 };
 
@@ -54,7 +58,20 @@ pub struct LoadingUpdate {
     pub total: usize,
 }
 
-pub fn run_loading_modal(progress_rx: mpsc::Receiver<LoadingUpdate>) -> Result<()> {
+pub struct TransferUpdate {
+    pub phase: String,
+    pub source: String,
+    pub destination: String,
+    pub processed: usize,
+    pub total: usize,
+    pub transferred: usize,
+    pub skipped: usize,
+}
+
+pub fn run_loading_modal(
+    progress_rx: mpsc::Receiver<LoadingUpdate>,
+    cancelled: Arc<AtomicBool>,
+) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -72,13 +89,70 @@ pub fn run_loading_modal(progress_rx: mpsc::Receiver<LoadingUpdate>) -> Result<(
     };
 
     loop {
-        terminal.draw(|frame| draw_loading(frame, &state))?;
+        terminal.draw(|frame| draw_loading(frame, &state, &cancelled))?;
 
         match progress_rx.recv_timeout(Duration::from_millis(80)) {
             Ok(update) => state = update,
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 if event::poll(Duration::from_millis(1))? {
-                    let _ = event::read()?;
+                    let event = event::read()?;
+                    let size = terminal.size()?;
+                    let area = Rect::new(0, 0, size.width, size.height);
+                    if progress_cancel_requested(&event, loading_cancel_button_rect(area)) {
+                        cancelled.store(true, Ordering::Relaxed);
+                    }
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    Ok(())
+}
+
+pub fn run_transfer_modal(
+    progress_rx: mpsc::Receiver<TransferUpdate>,
+    cancelled: Arc<AtomicBool>,
+    title: &str,
+) -> Result<()> {
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let mut state = TransferUpdate {
+        phase: String::from("Starting"),
+        source: String::from("Preparing transfer..."),
+        destination: String::new(),
+        processed: 0,
+        total: 0,
+        transferred: 0,
+        skipped: 0,
+    };
+
+    loop {
+        terminal.draw(|frame| draw_transfer(frame, &state, title, &cancelled))?;
+
+        match progress_rx.recv_timeout(Duration::from_millis(80)) {
+            Ok(update) => state = update,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                if event::poll(Duration::from_millis(1))? {
+                    let event = event::read()?;
+                    let size = terminal.size()?;
+                    let area = Rect::new(0, 0, size.width, size.height);
+                    if progress_cancel_requested(&event, transfer_cancel_button_rect(area)) {
+                        cancelled.store(true, Ordering::Relaxed);
+                    }
                 }
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
@@ -1241,7 +1315,7 @@ fn infer_game_name(item: &PlannedMove, output_root: &Path) -> String {
         .unwrap_or_else(|| String::from("unknown-game"))
 }
 
-fn draw_loading(frame: &mut Frame, state: &LoadingUpdate) {
+fn draw_loading(frame: &mut Frame, state: &LoadingUpdate, cancelled: &AtomicBool) {
     let area = frame.area();
     frame.render_widget(
         Block::default()
@@ -1252,7 +1326,7 @@ fn draw_loading(frame: &mut Frame, state: &LoadingUpdate) {
 
     // Keep the modal snug to its content so it doesn't look too tall/short on resize.
     let modal_width = area.width.saturating_sub(4).clamp(70, 140);
-    let modal_height = 9u16.min(area.height.saturating_sub(2));
+    let modal_height = 10u16.min(area.height.saturating_sub(2));
     let modal = centered_rect_fixed(modal_width, modal_height, area);
     frame.render_widget(Clear, modal);
 
@@ -1263,6 +1337,7 @@ fn draw_loading(frame: &mut Frame, state: &LoadingUpdate) {
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(3),
+            Constraint::Length(1),
             Constraint::Min(0),
         ])
         .split(inner_modal(modal));
@@ -1311,6 +1386,143 @@ fn draw_loading(frame: &mut Frame, state: &LoadingUpdate) {
     frame.render_widget(phase_counter, chunks[1]);
     frame.render_widget(current, chunks[2]);
     frame.render_widget(bar, chunks[3]);
+    frame.render_widget(cancel_button(cancelled.load(Ordering::Relaxed)), chunks[4]);
+}
+
+fn draw_transfer(frame: &mut Frame, state: &TransferUpdate, title: &str, cancelled: &AtomicBool) {
+    let area = frame.area();
+    frame.render_widget(
+        Block::default().title(title).borders(Borders::ALL),
+        area,
+    );
+
+    let modal_width = area.width.saturating_sub(4).clamp(70, 150);
+    let modal_height = 11u16.min(area.height.saturating_sub(2));
+    let modal = centered_rect_fixed(modal_width, modal_height, area);
+    frame.render_widget(Clear, modal);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Length(1),
+        ])
+        .split(inner_modal(modal));
+
+    frame.render_widget(
+        Block::default().title("Working").borders(Borders::ALL),
+        modal,
+    );
+
+    let phase = Paragraph::new(format!("Phase: {}", state.phase));
+    let current = Paragraph::new(format!(
+        "Source: {}",
+        normalize_windows_display_path(&state.source)
+    ));
+    let destination = Paragraph::new(format!(
+        "Destination: {}",
+        normalize_windows_display_path(&state.destination)
+    ));
+    let counters = Paragraph::new(format!(
+        "Processed: {} / {} | Transferred: {} | Skipped: {}",
+        state.processed, state.total, state.transferred, state.skipped
+    ));
+
+    let ratio = if state.total == 0 {
+        0.0
+    } else {
+        (state.processed as f64 / state.total as f64).clamp(0.0, 1.0)
+    };
+
+    let bar = Gauge::default()
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!("{} progress {}/{}", title, state.processed, state.total)),
+        )
+        .style(Style::default().bg(Color::DarkGray))
+        .gauge_style(
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .ratio(ratio)
+        .label(format!("{:>3}%", (ratio * 100.0) as u32));
+
+    frame.render_widget(phase, chunks[0]);
+    frame.render_widget(current, chunks[1]);
+    frame.render_widget(destination, chunks[2]);
+    frame.render_widget(counters, chunks[3]);
+    frame.render_widget(bar, chunks[4]);
+    frame.render_widget(cancel_button(cancelled.load(Ordering::Relaxed)), chunks[5]);
+}
+
+fn cancel_button(cancelled: bool) -> Paragraph<'static> {
+    let label = if cancelled { "Canceling..." } else { "[ Cancel ]" };
+    Paragraph::new(Line::from(Span::styled(
+        label,
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+    )))
+    .alignment(Alignment::Center)
+}
+
+fn progress_cancel_requested(event: &Event, button: Rect) -> bool {
+    match event {
+        Event::Key(key) => matches!(key.code, KeyCode::Esc | KeyCode::Char('q')),
+        Event::Mouse(mouse) => {
+            matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left))
+                && mouse.column >= button.x
+                && mouse.column < button.x.saturating_add(button.width)
+                && mouse.row >= button.y
+                && mouse.row < button.y.saturating_add(button.height)
+        }
+        _ => false,
+    }
+}
+
+fn loading_cancel_button_rect(area: Rect) -> Rect {
+    let modal_width = area.width.saturating_sub(4).clamp(70, 140);
+    let modal_height = 10u16.min(area.height.saturating_sub(2));
+    let modal = centered_rect_fixed(modal_width, modal_height, area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .split(inner_modal(modal));
+
+    chunks[4]
+}
+
+fn transfer_cancel_button_rect(area: Rect) -> Rect {
+    let modal_width = area.width.saturating_sub(4).clamp(70, 150);
+    let modal_height = 11u16.min(area.height.saturating_sub(2));
+    let modal = centered_rect_fixed(modal_width, modal_height, area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Length(1),
+        ])
+        .split(inner_modal(modal));
+
+    chunks[5]
 }
 
 fn centered_rect_fixed(width: u16, height: u16, area: Rect) -> Rect {
